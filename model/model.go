@@ -2,7 +2,6 @@ package model
 
 import (
 	. "bitbucket.org/dtolpin/infergo/dist"
-	"bitbucket.org/dtolpin/gogp/gp"
 )
 
 type Priors struct {}
