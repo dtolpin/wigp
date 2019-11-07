@@ -68,33 +68,34 @@ func (m *Model) Observe(x []float64) float64 {
 
 func (m *Model) Gradient() []float64 {
 	ny := m.gpy.Simil.NTheta() + m.gpy.Noise.NTheta()
+	nx := m.gpx.Simil.NTheta() + m.gpx.Noise.NTheta()
+	n := (len(m.grad) - ny - nx) / (m.gpy.NDim + 1)
+
 	// Add Y gradient to the priors gradient
-	j := m.gpy.Simil.NTheta() + m.gpy.Noise.NTheta()
-	for i := 0; i != j; i++ {
-		m.grad[i] += m.grady[i]
+	j := 0
+	for i := 0; i != ny; i++ {
+		m.grad[j] += m.grady[i]
+		j++
 	}
-	k = m.gpx.Simil.NTheta() + m.gpx.Noise.NTheta()
-	j += m.gpx.Simil.NTheta() + m.gpx.Noise.NTheta()
-	for ; i != len(m.grady); i++ {
+	j += nx
+	for ; i != ny + n; i++ {
 		m.grad[j] += m.grady[i]
 		j++
 	}
 
 	// Add X gradient to the priors gradient
-	j = m.gpy.Simil.NTheta() + m.gpy.Noise.NTheta()
-	for i := 0; i != len(m.gradx); i++ {
-		m.grad[j] 
+	j = ny
+	for i := 0; i != nx; i++ {
+		m.grad[j] += m.gradx[i]
+		j++
+	}
+	i += n
+	for ; i != nx + 2*n; i++ {
+		m.grad[j] += m.grad[x]
+		j++
 	}
 
-	// Wipe gradients of the last input and all outputs
-	iy0 := m.priors.NTheta() +
-		m.gp.Simil.NTheta() + m.gp.Noise.NTheta() +
-		len(m.gp.X)
-	for i := iy0; i != len(m.gradp); i++ {
-		m.gradp[i] = 0
-	}
-
-	return m.gradp
+	return m.grad
 }
 
 func main() {
