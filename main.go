@@ -19,11 +19,11 @@ import (
 )
 
 var (
-	NITER          = 0
-	EPS    float64 = 0
-	NTASKS         = 0
+	NITER            = 0
+	EPS    float64   = 0
+	NTASKS           = 0
 	LOGSIGMA float64
-	SHOWWARP = false
+	SHOWWARP         = false
 )
 
 func init() {
@@ -52,33 +52,49 @@ to demonstrate basic functionality.
 }
 
 type Model struct {
-	gp           *gp.GP
-	priors       *Priors
-	gGrad, pGrad []float64
+	priors             *Priors
+	gpy, gpx           *gp.GP
+	grad, grady, gradx []float64
+	x0                 []float64
 }
 
 func (m *Model) Observe(x []float64) float64 {
-	var gll, pll float64
-	xgp := x[m.priors.NTheta():]
-	gll, m.gGrad = m.gp.Observe(xgp), model.Gradient(m.gp)
-	pll, m.pGrad = m.priors.Observe(x), model.Gradient(m.priors)
-	return gll + pll
+	var ll, lly, llx float64
+	ll, m.grad = m.priors.Observe(x), model.Gradient(m.priors)
+	lly, m.grady = m.ygp.Observe(x/*TODO*/), model.Gradient(m.gpy)
+	llx, m.gradx = m.xgp.Observe(x/*TODO*/), model.Gradient(m.gpx)
+	return ll + lly + llx
 }
 
 func (m *Model) Gradient() []float64 {
-	for i := range m.gGrad {
-		m.pGrad[i + m.priors.NTheta()] += m.gGrad[i]
+	ny := m.gpy.Simil.NTheta() + m.gpy.Noise.NTheta()
+	// Add Y gradient to the priors gradient
+	j := m.gpy.Simil.NTheta() + m.gpy.Noise.NTheta()
+	for i := 0; i != j; i++ {
+		m.grad[i] += m.grady[i]
+	}
+	k = m.gpx.Simil.NTheta() + m.gpx.Noise.NTheta()
+	j += m.gpx.Simil.NTheta() + m.gpx.Noise.NTheta()
+	for ; i != len(m.grady); i++ {
+		m.grad[j] += m.grady[i]
+		j++
+	}
+
+	// Add X gradient to the priors gradient
+	j = m.gpy.Simil.NTheta() + m.gpy.Noise.NTheta()
+	for i := 0; i != len(m.gradx); i++ {
+		m.grad[j] 
 	}
 
 	// Wipe gradients of the last input and all outputs
 	iy0 := m.priors.NTheta() +
 		m.gp.Simil.NTheta() + m.gp.Noise.NTheta() +
 		len(m.gp.X)
-	for i := iy0; i != len(m.pGrad); i++ {
-		m.pGrad[i] = 0
+	for i := iy0; i != len(m.gradp); i++ {
+		m.gradp[i] = 0
 	}
 
-	return m.pGrad
+	return m.gradp
 }
 
 func main() {
@@ -97,30 +113,32 @@ func main() {
 		panic("usage")
 	}
 
-	g := &gp.GP{
+	gpy := &gp.GP{
 		NDim:  1,
-		Simil: Simil,
-		Noise: Noise,
+		Simil: YSimil,
+		Noise: YNoise,
 	}
+	gpx := &gp.GP {
+		NDim: 1,
+		Simil: XSimil,
+		Noise: XNoise,
+	}
+
 	m := &Model{
-		gp:     g,
-		priors: &Priors{
-			GP: &gp.GP {
-				NDim: 1,
-				Simil: XSimil,
-				Noise: XNoise,
-			},
-		},
+		gpy:    gpy,
+		gpx:    gpx,
+		priors: &Priors{},
 	}
-	theta := make([]float64, m.priors.NTheta() + g.Simil.NTheta()+g.Noise.NTheta())
+	theta := make([]float64, m.priors.NTheta() +
+		gpy.Simil.NTheta() + gpx.Noise.NTheta())
 
 	// Collect results in a buffer to patch with updated inputs
 
 	if SHOWWARP {
 		buffer := strings.Builder{}
-		Evaluate(g, m, theta, input, &buffer)
+		Evaluate(gpy, m, theta, input, &buffer)
 		// Predict at updated inputs
-		mu, sigma, _ := g.Produce(g.X)
+		mu, sigma, _ := gpy.Produce(gpy.X)
 
 		// Patch
 		lines := strings.Split(buffer.String(), "\n")
@@ -135,7 +153,7 @@ func main() {
 			}
 			fields := strings.SplitN(line, ",", 5)
 			fmt.Fprintf(output, "%f,%f,%f,%f,%s\n",
-				g.X[i][0], g.Y[i], mu[i], sigma[i],
+				gpy.X[i][0], gpy.Y[i], mu[i], sigma[i],
 				fields[len(fields)-1])
 		}
 
@@ -143,7 +161,7 @@ func main() {
 		// unmodified
 		fmt.Fprintln(output, lines[ilast])
 	} else {
-		Evaluate(g, m, theta, input, output)
+		Evaluate(gpy, m, theta, input, output)
 	}
 }
 
@@ -156,7 +174,7 @@ func main() {
 // different optimization/inference algorithm may be a better
 // choice.
 func Evaluate(
-	g *gp.GP, // gaussian process
+	gpy *gp.GP, // gaussian process
 	m model.Model, // optimization model
 	theta []float64, // initial values of hyperparameters
 	rdr io.Reader, // data
@@ -183,12 +201,12 @@ func Evaluate(
 		// The inputs are optimized as well as the
 		// hyperparameters. The inputs are appended to the
 		// parameter vector of Observe.
-		x = make([]float64, len(theta)+len(Xi)*(g.NDim+1))
+		x = make([]float64, len(theta)+len(Xi)*(gpy.NDim+1))
 		copy(x, theta)
 		k := len(theta)
 		for j := range Xi {
 			copy(x[k:], Xi[j])
-			k += g.NDim
+			k += gpy.NDim
 		}
 		copy(x[k:], Yi)
 
@@ -198,7 +216,7 @@ func Evaluate(
 
 		// Initial log likelihood
 		lml0 := m.Observe(x)
-		model.DropGradient(m)
+		model.Drogradpient(m)
 
 		result, err := optimize.Minimize(
 			p, x, &optimize.Settings{
@@ -220,12 +238,12 @@ func Evaluate(
 
 		// Final log likelihood
 		lml := m.Observe(x)
-		model.DropGradient(m)
+		model.Drogradpient(m)
 		ad.DropAllTapes()
 
 		// Forecast
 		Z := X[end : end+1]
-		mu, sigma, err := g.Produce(Z)
+		mu, sigma, err := gpy.Produce(Z)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to forecast: %v\n", err)
 		}

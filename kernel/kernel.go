@@ -5,11 +5,11 @@ import (
 )
 
 // The similarity kernel.
-type simil struct{}
+type ysimil struct{}
 
-var Simil simil
+var YSimil ysimil
 
-func (simil) Observe(x []float64) float64 {
+func (ysimil) Observe(x []float64) float64 {
 	const (
 		c  = iota // output scale
 		l         // length scale
@@ -20,7 +20,7 @@ func (simil) Observe(x []float64) float64 {
 	return x[c] * kernel.Matern52.Cov(x[l], x[xa], x[xb])
 }
 
-func (simil) NTheta() int { return 2 }
+func (ysimil) NTheta() int { return 2 }
 
 // The X similarity kernel.
 type xsimil struct{}
@@ -41,15 +41,15 @@ func (xsimil) Observe(x []float64) float64 {
 func (xsimil) NTheta() int { return 2 }
 
 // The noise kernel.
-type noise struct{}
+type ynoise struct{}
 
-var Noise noise
+var YNoise ynoise
 
-func (n noise) Observe(x []float64) float64 {
+func (n ynoise) Observe(x []float64) float64 {
 	return 0.01 * kernel.UniformNoise.Observe(x)
 }
 
-func (noise) NTheta() int { return 1 }
+func (ynoise) NTheta() int { return 1 }
 
 var XNoise kernel.ConstantNoise
 
