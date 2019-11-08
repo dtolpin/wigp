@@ -35,7 +35,7 @@ func (xsimil) Observe(x []float64) float64 {
 		xb        // second point
 	)
 
-	return x[c] * kernel.Normal.Cov(x[l], x[xa], x[xb])
+	return  x[c] * kernel.Normal.Cov(x[l], x[xa], x[xb])
 }
 
 func (xsimil) NTheta() int { return 2 }
@@ -51,8 +51,13 @@ func (n ynoise) Observe(x []float64) float64 {
 
 func (ynoise) NTheta() int { return 1 }
 
-var XNoise kernel.ConstantNoise
+// The X noise kernel.
+type xnoise struct{}
 
-func init() {
-	XNoise = kernel.ConstantNoise(1E-10)
+var XNoise xnoise
+
+func (n xnoise) Observe(x []float64) float64 {
+	return 0.001 * kernel.UniformNoise.Observe(x)
 }
+
+func (xnoise) NTheta() int { return 1 }

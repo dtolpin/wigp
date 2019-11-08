@@ -73,9 +73,12 @@ func (m *Model) Observe(x []float64) float64 {
 
 	xx := make([]float64, nx  + (m.gpx.NDim+1)*n)
 	copy(xx, x[ny:ny+nx])
-	copy(xy[nx:], m.x0)
+	copy(xx[nx:], m.x0)
 	/* TODO: a loop over dimensions should be here */
-	copy(xy[nx + m.gpx.NDim*n:], x[nx+ny:nx+ny+n])
+	copy(xx[nx + m.gpx.NDim*n:], x[nx+ny:nx+ny+n])
+	for i := 0; i != n; i++ {
+		xx[nx + m.gpx.NDim*n + i] -= m.x0[i]
+	}
 	llx, m.gradx = m.gpx.Observe(xx), model.Gradient(m.gpx)
 
 	return ll + lly + llx
@@ -109,6 +112,13 @@ func (m *Model) Gradient() []float64 {
 		m.grad[j] += m.gradx[i]
 		j++
 	}
+
+	// Pin the edges
+	if n > 0 {
+		m.grad[nx + ny] = 0
+		m.grad[nx + ny + n - 1] = 0
+	}
+
 
 	return m.grad
 }
@@ -153,7 +163,7 @@ func main() {
 
 	if SHOWWARP {
 		buffer := strings.Builder{}
-		Evaluate(gpy, m, theta, input, &buffer)
+		Evaluate(m, theta, input, &buffer)
 		// Predict at updated inputs
 		mu, sigma, _ := gpy.Produce(gpy.X)
 
@@ -178,7 +188,7 @@ func main() {
 		// unmodified
 		fmt.Fprintln(output, lines[ilast])
 	} else {
-		Evaluate(gpy, m, theta, input, output)
+		Evaluate(m, theta, input, output)
 	}
 }
 
@@ -191,7 +201,6 @@ func main() {
 // different optimization/inference algorithm may be a better
 // choice.
 func Evaluate(
-	gpy *gp.GP, // gaussian process
 	m *Model, // optimization model
 	theta []float64, // initial values of hyperparameters
 	rdr io.Reader, // data
@@ -218,16 +227,16 @@ func Evaluate(
 		// The inputs are optimized as well as the
 		// hyperparameters. The inputs are appended to the
 		// parameter vector of Observe.
-		x = make([]float64, len(theta)+len(Xi)*(gpy.NDim+1))
+		x = make([]float64, len(theta)+len(Xi)*(m.gpy.NDim+1))
 		copy(x, theta)
 		k := len(theta)
 		for j := range Xi {
 			copy(x[k:], Xi[j])
-			k += gpy.NDim
+			k += m.gpy.NDim
 		}
 		copy(x[k:], Yi)
-		m.x0 = make([]float64, len(Xi)*gpy.NDim)
-		copy(m.x0, x[len(theta):len(theta) + len(Xi)*gpy.NDim])
+		m.x0 = make([]float64, len(Xi)*m.gpy.NDim)
+		copy(m.x0, x[len(theta):len(theta) + len(Xi)*m.gpy.NDim])
 
 		// Optimize the parameters
 		Func, Grad := infer.FuncGrad(m)
@@ -262,7 +271,12 @@ func Evaluate(
 
 		// Forecast
 		Z := X[end : end+1]
-		mu, sigma, err := gpy.Produce(Z)
+
+		mux, _, _ := m.gpx.Produce(Z)
+		fmt.Fprintln(os.Stderr, Z[0][0], mux[0], Z[0][0] + mux[0])
+		Z[0][0] += mux[0]
+
+		mu, sigma, err := m.gpy.Produce(Z)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to forecast: %v\n", err)
 		}

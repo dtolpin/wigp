@@ -26,7 +26,7 @@ func (m *Priors) Observe(x []float64) float64 {
 	ll += Normal.Logp(0, 2, x[lx])
 
 	// The noise is scaled by 0.01 in the kernel.
-	ll += Normal.Logp(0, 1, x[s])
+	// ll += Normal.Logp(0, 1, x[s])
 
 	return ll
 }
