@@ -2,11 +2,11 @@ package main
 
 import (
 	"bitbucket.org/dtolpin/gogp/gp"
-	. "bitbucket.org/dtolpin/wigp/kernel/ad"
-	. "bitbucket.org/dtolpin/wigp/model/ad"
 	"bitbucket.org/dtolpin/infergo/ad"
 	"bitbucket.org/dtolpin/infergo/infer"
 	"bitbucket.org/dtolpin/infergo/model"
+	. "bitbucket.org/dtolpin/wigp/kernel/ad"
+	. "bitbucket.org/dtolpin/wigp/model/ad"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -14,16 +14,16 @@ import (
 	"io"
 	"math"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 var (
 	NITER            = 0
-	EPS    float64   = 0
+	EPS      float64 = 0
 	NTASKS           = 0
 	LOGSIGMA float64
-	SHOWWARP         = false
+	SHOWWARP = false
 )
 
 func init() {
@@ -66,18 +66,18 @@ func (m *Model) Observe(x []float64) float64 {
 
 	ll, m.grad = m.priors.Observe(x), model.Gradient(m.priors)
 
-	xy := make([]float64, ny + (m.gpy.NDim+1)*n)
+	xy := make([]float64, ny+(m.gpy.NDim+1)*n)
 	copy(xy, x[:ny])
 	copy(xy[ny:], x[nx+ny:])
 	lly, m.grady = m.gpy.Observe(xy), model.Gradient(m.gpy)
 
-	xx := make([]float64, nx  + (m.gpx.NDim+1)*n)
+	xx := make([]float64, nx+(m.gpx.NDim+1)*n)
 	copy(xx, x[ny:ny+nx])
 	copy(xx[nx:], m.x0)
 	/* TODO: a loop over dimensions should be here */
-	copy(xx[nx + m.gpx.NDim*n:], x[nx+ny:nx+ny+n])
+	copy(xx[nx+m.gpx.NDim*n:], x[nx+ny:nx+ny+n])
 	for i := 0; i != n; i++ {
-		xx[nx + m.gpx.NDim*n + i] -= m.x0[i]
+		xx[nx+m.gpx.NDim*n+i] -= m.x0[i]
 	}
 	llx, m.gradx = m.gpx.Observe(xx), model.Gradient(m.gpx)
 
@@ -96,7 +96,7 @@ func (m *Model) Gradient() []float64 {
 		j++
 	}
 	j += nx
-	for ; i != ny + n; i++ {
+	for ; i != ny+n; i++ {
 		m.grad[j] += m.grady[i]
 		j++
 	}
@@ -107,18 +107,10 @@ func (m *Model) Gradient() []float64 {
 		m.grad[j] += m.gradx[i]
 		j++
 	}
-	i += m.gpx.NDim*n
-	for ; i != nx + (m.gpx.NDim+1)*n; i++ {
+	i += m.gpx.NDim * n
+	for ; i != nx+(m.gpx.NDim+1)*n; i++ {
 		m.grad[j] += m.gradx[i]
-		j++
 	}
-
-	// Pin the edges
-	if n > 0 {
-		m.grad[nx + ny] = 0
-		m.grad[nx + ny + n - 1] = 0
-	}
-
 
 	return m.grad
 }
@@ -144,8 +136,8 @@ func main() {
 		Simil: YSimil,
 		Noise: YNoise,
 	}
-	gpx := &gp.GP {
-		NDim: 1,
+	gpx := &gp.GP{
+		NDim:  1,
 		Simil: XSimil,
 		Noise: XNoise,
 	}
@@ -155,9 +147,9 @@ func main() {
 		gpx:    gpx,
 		priors: &Priors{},
 	}
-	theta := make([]float64, 
-		m.gpy.Simil.NTheta() + m.gpy.Noise.NTheta() +
-		m.gpx.Simil.NTheta() + m.gpx.Noise.NTheta())
+	theta := make([]float64,
+		m.gpy.Simil.NTheta()+m.gpy.Noise.NTheta()+
+			m.gpx.Simil.NTheta()+m.gpx.Noise.NTheta())
 
 	// Collect results in a buffer to patch with updated inputs
 
@@ -236,7 +228,7 @@ func Evaluate(
 		}
 		copy(x[k:], Yi)
 		m.x0 = make([]float64, len(Xi)*m.gpy.NDim)
-		copy(m.x0, x[len(theta):len(theta) + len(Xi)*m.gpy.NDim])
+		copy(m.x0, x[len(theta):len(theta)+len(Xi)*m.gpy.NDim])
 
 		// Optimize the parameters
 		Func, Grad := infer.FuncGrad(m)
@@ -273,7 +265,6 @@ func Evaluate(
 		Z := X[end : end+1]
 
 		mux, _, _ := m.gpx.Produce(Z)
-		fmt.Fprintln(os.Stderr, Z[0][0], mux[0], Z[0][0] + mux[0])
 		Z[0][0] += mux[0]
 
 		mu, sigma, err := m.gpy.Produce(Z)
