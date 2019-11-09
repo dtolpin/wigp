@@ -46,7 +46,7 @@ type ynoise struct{}
 var YNoise ynoise
 
 func (n ynoise) Observe(x []float64) float64 {
-	return 0.01 * kernel.UniformNoise.Observe(x)
+	return 0.1 * kernel.UniformNoise.Observe(x)
 }
 
 func (ynoise) NTheta() int { return 1 }
@@ -57,7 +57,7 @@ type xnoise struct{}
 var XNoise xnoise
 
 func (n xnoise) Observe(x []float64) float64 {
-	return 0.01 * kernel.UniformNoise.Observe(x)
+	return 0.1 * kernel.UniformNoise.Observe(x)
 }
 
 func (xnoise) NTheta() int { return 1 }

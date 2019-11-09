@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"gonum.org/v1/gonum/optimize"
+	"gonum.org/v1/gonum/stat"
 	"io"
 	"math"
 	"os"
@@ -77,7 +78,7 @@ func (m *Model) Observe(x []float64) float64 {
 	/* TODO: a loop over dimensions should be here */
 	copy(xx[nx+m.gpx.NDim*n:], x[nx+ny:nx+ny+n])
 	for i := 0; i != n; i++ {
-		xx[nx+m.gpx.NDim*n+i] -= m.x0[i]
+		// xx[nx+m.gpx.NDim*n+i] -= m.x0[i]
 	}
 	llx, m.gradx = m.gpx.Observe(xx), model.Gradient(m.gpx)
 
@@ -207,6 +208,13 @@ func Evaluate(
 	}
 	fmt.Fprintln(os.Stderr, "done")
 
+	// Normalize Y
+	meany, stdy := stat.MeanStdDev(Y, nil)
+	for i := range Y {
+		Y[i] = (Y[i] - meany)/stdy
+	}
+	fmt.Println(Y)
+
 	// Forecast one step out of sample, iteratively.
 	// Output data augmented with predictions.
 	fmt.Fprintln(os.Stderr, "Forecasting...")
@@ -265,6 +273,7 @@ func Evaluate(
 		Z := X[end : end+1]
 
 		mux, _, _ := m.gpx.Produce(Z)
+		mux = mux
 		Z[0][0] += mux[0]
 
 		mu, sigma, err := m.gpy.Produce(Z)
