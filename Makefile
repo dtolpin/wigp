@@ -3,14 +3,14 @@ all: selfcheck
 selfcheck: wigp
 	./wigp selfcheck
 
-wigp: kernel/ad/kernel.go model/ad/model.go main.go
+wigp: kernel/ad/kernel.go priors/ad/priors.go main.go
 	go build .
 
 kernel/ad/kernel.go: kernel/kernel.go
 	deriv kernel
 
-model/ad/model.go: model/model.go
-	deriv model
+priors/ad/priors.go: priors/priors.go
+	deriv priors
 
 clean:
-	rm -f ./wigp {kernel,model}/ad/*.go 
+	rm -f ./wigp {kernel,priors}/ad/*.go 

@@ -5,11 +5,11 @@ import (
 )
 
 // The similarity kernel.
-type ysimil struct{}
+type simil struct{}
 
-var YSimil ysimil
+var Simil simil
 
-func (ysimil) Observe(x []float64) float64 {
+func (simil) Observe(x []float64) float64 {
 	const (
 		c  = iota // output scale
 		l         // length scale
@@ -20,44 +20,17 @@ func (ysimil) Observe(x []float64) float64 {
 	return x[c] * kernel.Matern52.Cov(x[l], x[xa], x[xb])
 }
 
-func (ysimil) NTheta() int { return 2 }
+func (simil) NTheta() int { return 2 }
 
-// The X similarity kernel.
-type xsimil struct{}
+// The noise kernel
+type noise struct{}
 
-var XSimil xsimil
+var Noise noise
 
-func (xsimil) Observe(x []float64) float64 {
-	const (
-		c  = iota // output scale
-		l         // length scale
-		xa        // first point
-		xb        // second point
-	)
-
-	return x[c] * kernel.Normal.Cov(x[l], x[xa], x[xb])
+func (n noise) Observe(x []float64) float64 {
+	// The noise is scaled by 0.01 so that the initial value
+	// log(s)=0 corresponds to standard deviation of 0.1.
+	return 0.01 * kernel.UniformNoise.Observe(x)
 }
 
-func (xsimil) NTheta() int { return 2 }
-
-// The noise kernel.
-type ynoise struct{}
-
-var YNoise ynoise
-
-func (n ynoise) Observe(x []float64) float64 {
-	return 0.1 * kernel.UniformNoise.Observe(x)
-}
-
-func (ynoise) NTheta() int { return 1 }
-
-// The X noise kernel.
-type xnoise struct{}
-
-var XNoise xnoise
-
-func (n xnoise) Observe(x []float64) float64 {
-	return 0.1 * kernel.UniformNoise.Observe(x)
-}
-
-func (xnoise) NTheta() int { return 1 }
+func (noise) NTheta() int { return 1 }

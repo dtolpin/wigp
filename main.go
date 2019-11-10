@@ -2,11 +2,12 @@ package main
 
 import (
 	"bitbucket.org/dtolpin/gogp/gp"
+	"bitbucket.org/dtolpin/gogp/tutorial"
 	"bitbucket.org/dtolpin/infergo/ad"
 	"bitbucket.org/dtolpin/infergo/infer"
 	"bitbucket.org/dtolpin/infergo/model"
 	. "bitbucket.org/dtolpin/wigp/kernel/ad"
-	. "bitbucket.org/dtolpin/wigp/model/ad"
+	. "bitbucket.org/dtolpin/wigp/priors/ad"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -15,20 +16,11 @@ import (
 	"io"
 	"math"
 	"os"
-	"strconv"
 	"strings"
-)
-
-var (
-	NITER            = 0
-	EPS      float64 = 0
-	NTASKS           = 0
-	LOGSIGMA float64
-	SHOWWARP = false
+	"strconv"
 )
 
 func init() {
-	LOGSIGMA = math.Log(0.5)
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(),
 			`A model with warped time. Invocation:
@@ -40,83 +32,84 @@ to demonstrate basic functionality.
 `, os.Args[0], os.Args[0])
 		flag.PrintDefaults()
 	}
-	flag.IntVar(&NITER, "niter", NITER,
-		"number of optimizer iterations")
-	flag.IntVar(&NTASKS, "ntasks", NTASKS,
-		"number of optimizer tasks")
-	flag.Float64Var(&EPS, "eps", EPS,
-		"gradient threshold for early stopping")
-	flag.Float64Var(&LOGSIGMA, "logsigma", LOGSIGMA,
-		"log standard deviation of relative step")
-	flag.BoolVar(&SHOWWARP, "show-warp", SHOWWARP,
-		"show warped inputs")
 }
 
 type Model struct {
-	priors             *Priors
-	gpy, gpx           *gp.GP
-	grad, grady, gradx []float64
-	x0                 []float64
+	Priors *Priors
+	GP     *gp.GP
+	grad   []float64
 }
 
 func (m *Model) Observe(x []float64) float64 {
-	var ll, lly, llx float64
-	ny := m.gpy.Simil.NTheta() + m.gpy.Noise.NTheta()
-	nx := m.gpx.Simil.NTheta() + m.gpx.Noise.NTheta()
-	n := (len(x) - ny - nx) / (m.gpy.NDim + 1)
+	// Gaussian process
+	xGP := make([]float64,
+		m.GP.Simil.NTheta()+m.GP.Noise.NTheta()+
+			len(m.GP.X)*(m.GP.NDim+1))
 
-	ll, m.grad = m.priors.Observe(x), model.Gradient(m.priors)
+	// Kernel parameters
+	l := m.GP.Simil.NTheta() + m.GP.Noise.NTheta() // over m.GP.X
+	copy(xGP, x[:l])
+	k := l
+	l += m.Priors.NTheta()
 
-	xy := make([]float64, ny+(m.gpy.NDim+1)*n)
-	copy(xy, x[:ny])
-	copy(xy[ny:], x[nx+ny:])
-	lly, m.grady = m.gpy.Observe(xy), model.Gradient(m.gpy)
-
-	xx := make([]float64, nx+(m.gpx.NDim+1)*n)
-	copy(xx, x[ny:ny+nx])
-	copy(xx[nx:], m.x0)
-	/* TODO: a loop over dimensions should be here */
-	copy(xx[nx+m.gpx.NDim*n:], x[nx+ny:nx+ny+n])
-	for i := 0; i != n; i++ {
-		// xx[nx+m.gpx.NDim*n+i] -= m.x0[i]
+	// Observations
+	// Warped inputs
+	copy(xGP[k:], m.GP.X[0])
+	k += m.GP.NDim
+	for i := range m.GP.X[1:] {
+		for j := range m.GP.X[i] {
+			xGP[k] = m.GP.X[i][j] +
+				math.Exp(x[l])*(m.GP.X[i+1][j]-m.GP.X[i][j])
+			k++
+			l++
+		}
 	}
-	llx, m.gradx = m.gpx.Observe(xx), model.Gradient(m.gpx)
+	// Outputs
+	for i := range m.GP.Y {
+		xGP[k] = m.GP.Y[i]
+		k++
+	}
 
-	return ll + lly + llx
+	llPriors, gPriors := m.Priors.Observe(x), model.Gradient(m.Priors)
+	llGP, gGP := m.GP.Observe(xGP), model.Gradient(m.GP)
+	ll := llPriors + llGP
+
+	m.grad = make([]float64, len(x))
+	copy(m.grad, gPriors)
+
+	// Kernel parameters
+	l = 0
+	for k = 0; k != m.GP.Simil.NTheta()+m.GP.Noise.NTheta(); k++ {
+		m.grad[l] += gGP[k]
+		l++
+	}
+	l += m.Priors.NTheta()
+
+	// Transformations
+	for i := 0; i != len(m.GP.X)-1; i++ {
+		for j := 0; j != m.GP.NDim; j++ {
+			// dLoss/dloglambda = lambda * dx * sum dLoss/dx
+			lambda := math.Exp(x[l])
+			dx := m.GP.X[i+1][j] - m.GP.X[i][j]
+			sum := 0.
+			for ii := i + 1; ii != len(m.GP.X); ii++ {
+				sum += gGP[k+ii*m.GP.NDim+j]
+			}
+			k++
+			m.grad[l] += lambda * dx * sum
+			l++
+		}
+	}
+
+	return ll
 }
 
 func (m *Model) Gradient() []float64 {
-	ny := m.gpy.Simil.NTheta() + m.gpy.Noise.NTheta()
-	nx := m.gpx.Simil.NTheta() + m.gpx.Noise.NTheta()
-	n := (len(m.grad) - ny - nx) / (m.gpy.NDim + 1)
-
-	// Add Y gradient to the priors gradient
-	i, j := 0, 0
-	for ; i != ny; i++ {
-		m.grad[j] += m.grady[i]
-		j++
-	}
-	j += nx
-	for ; i != ny+n; i++ {
-		m.grad[j] += m.grady[i]
-		j++
-	}
-
-	// Add X gradient to the priors gradient
-	i, j = 0, ny
-	for ; i != nx; i++ {
-		m.grad[j] += m.gradx[i]
-		j++
-	}
-	i += m.gpx.NDim * n
-	for ; i != nx+(m.gpx.NDim+1)*n; i++ {
-		m.grad[j] += m.gradx[i]
-	}
-
 	return m.grad
 }
 
 func main() {
+	tutorial.OPTINP = true
 
 	var (
 		input  io.Reader = os.Stdin
@@ -132,79 +125,24 @@ func main() {
 		panic("usage")
 	}
 
-	gpy := &gp.GP{
+	gp := &gp.GP{
 		NDim:  1,
-		Simil: YSimil,
-		Noise: YNoise,
+		Simil: Simil,
+		Noise: Noise,
 	}
-	gpx := &gp.GP{
-		NDim:  1,
-		Simil: XSimil,
-		Noise: XNoise,
-	}
-
 	m := &Model{
-		gpy:    gpy,
-		gpx:    gpx,
-		priors: &Priors{},
+		GP:     gp,
+		Priors: &Priors{},
 	}
-	theta := make([]float64,
-		m.gpy.Simil.NTheta()+m.gpy.Noise.NTheta()+
-			m.gpx.Simil.NTheta()+m.gpx.Noise.NTheta())
 
 	// Collect results in a buffer to patch with updated inputs
 
-	if SHOWWARP {
-		buffer := strings.Builder{}
-		Evaluate(m, theta, input, &buffer)
-		// Predict at updated inputs
-		mu, sigma, _ := gpy.Produce(gpy.X)
-
-		// Patch
-		lines := strings.Split(buffer.String(), "\n")
-		ilast := len(lines) - 1
-		if len(lines[ilast]) == 0 {
-			// There is an extra empty line
-			ilast--
-		}
-		for i, line := range lines[:ilast] {
-			if len(line) == 0 {
-				break
-			}
-			fields := strings.SplitN(line, ",", 5)
-			fmt.Fprintf(output, "%f,%f,%f,%f,%s\n",
-				gpy.X[i][0], gpy.Y[i], mu[i], sigma[i],
-				fields[len(fields)-1])
-		}
-
-		// The last input is fixed, and the last line is left
-		// unmodified
-		fmt.Fprintln(output, lines[ilast])
-	} else {
-		Evaluate(m, theta, input, output)
-	}
-}
-
-// Evaluate evaluates Gaussian process on CSV data.  One step
-// out of sample forecast is recorded for each time point, along
-// with the hyperparameters.  For optimization, LBFGS from the
-// gonum library (http://gonum.org) is used for faster
-// execution. In general though, LBFGS is a bit of hit-or-miss,
-// failing to optimize occasionally, so in real applications a
-// different optimization/inference algorithm may be a better
-// choice.
-func Evaluate(
-	m *Model, // optimization model
-	theta []float64, // initial values of hyperparameters
-	rdr io.Reader, // data
-	wtr io.Writer, // forecasts
-) error {
 	// Load the data
 	var err error
 	fmt.Fprint(os.Stderr, "loading...")
-	X, Y, err := load(rdr)
+	X, Y, err := load(input)
 	if err != nil {
-		return err
+		panic( err)
 	}
 	fmt.Fprintln(os.Stderr, "done")
 
@@ -213,30 +151,18 @@ func Evaluate(
 	for i := range Y {
 		Y[i] = (Y[i] - meany)/stdy
 	}
-	fmt.Println(Y)
 
 	// Forecast one step out of sample, iteratively.
 	// Output data augmented with predictions.
 	fmt.Fprintln(os.Stderr, "Forecasting...")
-	for end := 0; end != len(X); end++ {
-		Xi := X[:end]
-		Yi := Y[:end]
+	for end := 2; end != len(X); end++ {
+		m.GP.X = X[:end]
+		m.GP.Y = Y[:end]
+		x := make([]float64,
+			gp.Simil.NTheta()+gp.Noise.NTheta() + m.Priors.NTheta() +
+            len(m.GP.X) - 1)
 
 		// Construct the initial point in the optimization space
-		var x []float64
-		// The inputs are optimized as well as the
-		// hyperparameters. The inputs are appended to the
-		// parameter vector of Observe.
-		x = make([]float64, len(theta)+len(Xi)*(m.gpy.NDim+1))
-		copy(x, theta)
-		k := len(theta)
-		for j := range Xi {
-			copy(x[k:], Xi[j])
-			k += m.gpy.NDim
-		}
-		copy(x[k:], Yi)
-		m.x0 = make([]float64, len(Xi)*m.gpy.NDim)
-		copy(m.x0, x[len(theta):len(theta)+len(Xi)*m.gpy.NDim])
 
 		// Optimize the parameters
 		Func, Grad := infer.FuncGrad(m)
@@ -246,11 +172,14 @@ func Evaluate(
 		lml0 := m.Observe(x)
 		model.DropGradient(m)
 
+		// For some kernels and data, the optimizing of
+		// hyperparameters does not make sense with too few
+		// points.
 		result, err := optimize.Minimize(
 			p, x, &optimize.Settings{
-				MajorIterations:   NITER,
-				GradientThreshold: EPS,
-				Concurrent:        NTASKS,
+				MajorIterations:   0,
+				GradientThreshold: 0,
+				Concurrent:        0,
 			}, nil)
 		// We do not need the optimizer to `officially'
 		// converge, a few iterations usually bring most
@@ -271,12 +200,7 @@ func Evaluate(
 
 		// Forecast
 		Z := X[end : end+1]
-
-		mux, _, _ := m.gpx.Produce(Z)
-		mux = mux
-		Z[0][0] += mux[0]
-
-		mu, sigma, err := m.gpy.Produce(Z)
+		mu, sigma, err := m.GP.Produce(Z)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to forecast: %v\n", err)
 		}
@@ -284,18 +208,18 @@ func Evaluate(
 		// Output forecasts
 		z := Z[0]
 		for j := range z {
-			fmt.Fprintf(wtr, "%f,", z[j])
+			fmt.Fprintf(output, "%f,", z[j])
 		}
-		fmt.Fprintf(wtr, "%f,%f,%f,%f,%f",
+		fmt.Fprintf(output, "%f,%f,%f,%f,%f",
 			Y[end], mu[0], sigma[0], lml0, lml)
-		for i := 0; i != len(theta); i++ {
-			fmt.Fprintf(wtr, ",%f", math.Exp(x[i]))
+		for i := 0; i != m.GP.Simil.NTheta() + m.GP.Noise.NTheta() + m.Priors.NTheta(); i++ {
+			fmt.Fprintf(output, ",%f", math.Exp(x[i]))
 		}
-		fmt.Fprintln(wtr)
+		fmt.Fprintln(output)
 	}
 	fmt.Fprintln(os.Stderr, "done")
 
-	return nil
+	return
 }
 
 // load parses the data from csv and returns inputs and outputs,
@@ -339,7 +263,6 @@ RECORDS:
 
 	return x, y, err
 }
-
 var selfCheckData = `0.1,-3.376024003717768007e+00
 0.3,-1.977828720240523142e+00
 0.5,-1.170229755402199645e+00
