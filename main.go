@@ -16,8 +16,8 @@ import (
 	"io"
 	"math"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 func init() {
@@ -37,6 +37,8 @@ to demonstrate basic functionality.
 type Model struct {
 	Priors *Priors
 	GP     *gp.GP
+	X      [][]float64
+	Y      []float64
 	grad   []float64
 }
 
@@ -44,29 +46,29 @@ func (m *Model) Observe(x []float64) float64 {
 	// Gaussian process
 	xGP := make([]float64,
 		m.GP.Simil.NTheta()+m.GP.Noise.NTheta()+
-			len(m.GP.X)*(m.GP.NDim+1))
+			len(m.X)*(m.GP.NDim+1))
 
 	// Kernel parameters
-	l := m.GP.Simil.NTheta() + m.GP.Noise.NTheta() // over m.GP.X
+	l := m.GP.Simil.NTheta() + m.GP.Noise.NTheta() // over m.X
 	copy(xGP, x[:l])
 	k := l
 	l += m.Priors.NTheta()
 
 	// Observations
 	// Warped inputs
-	copy(xGP[k:], m.GP.X[0])
+	copy(xGP[k:], m.X[0])
 	k += m.GP.NDim
-	for i := range m.GP.X[1:] {
-		for j := range m.GP.X[i] {
-			xGP[k] = m.GP.X[i][j] +
-				math.Exp(x[l])*(m.GP.X[i+1][j]-m.GP.X[i][j])
+	for i := range m.X[1:] {
+		for j := range m.X[i] {
+			xGP[k] = m.X[i][j] +
+				math.Exp(x[l])*(m.X[i+1][j]-m.X[i][j])
 			k++
 			l++
 		}
 	}
 	// Outputs
-	for i := range m.GP.Y {
-		xGP[k] = m.GP.Y[i]
+	for i := range m.Y {
+		xGP[k] = m.Y[i]
 		k++
 	}
 
@@ -86,13 +88,13 @@ func (m *Model) Observe(x []float64) float64 {
 	l += m.Priors.NTheta()
 
 	// Transformations
-	for i := 0; i != len(m.GP.X)-1; i++ {
+	for i := 0; i != len(m.X)-1; i++ {
 		for j := 0; j != m.GP.NDim; j++ {
 			// dLoss/dloglambda = lambda * dx * sum dLoss/dx
 			lambda := math.Exp(x[l])
-			dx := m.GP.X[i+1][j] - m.GP.X[i][j]
+			dx := m.X[i+1][j] - m.X[i][j]
 			sum := 0.
-			for ii := i + 1; ii != len(m.GP.X); ii++ {
+			for ii := i + 1; ii != len(m.X); ii++ {
 				sum += gGP[k+ii*m.GP.NDim+j]
 			}
 			k++
@@ -142,25 +144,24 @@ func main() {
 	fmt.Fprint(os.Stderr, "loading...")
 	X, Y, err := load(input)
 	if err != nil {
-		panic( err)
+		panic(err)
 	}
 	fmt.Fprintln(os.Stderr, "done")
 
 	// Normalize Y
 	meany, stdy := stat.MeanStdDev(Y, nil)
 	for i := range Y {
-		Y[i] = (Y[i] - meany)/stdy
+		Y[i] = (Y[i] - meany) / stdy
 	}
 
 	// Forecast one step out of sample, iteratively.
 	// Output data augmented with predictions.
 	fmt.Fprintln(os.Stderr, "Forecasting...")
-	for end := 2; end != len(X); end++ {
-		m.GP.X = X[:end]
-		m.GP.Y = Y[:end]
+	for end := 1; end != len(X); end++ {
+		m.X = X[:end]
+		m.Y = Y[:end]
 		x := make([]float64,
-			gp.Simil.NTheta()+gp.Noise.NTheta() + m.Priors.NTheta() +
-            len(m.GP.X) - 1)
+			gp.Simil.NTheta()+gp.Noise.NTheta()+m.Priors.NTheta()+end-1)
 
 		// Construct the initial point in the optimization space
 
@@ -199,7 +200,8 @@ func main() {
 		ad.DropAllTapes()
 
 		// Forecast
-		Z := X[end : end+1]
+		Z := [][]float64{{0}}
+		Z[0][0] = gp.X[end-1][0] + X[end][0] - X[end-1][0]
 		mu, sigma, err := m.GP.Produce(Z)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to forecast: %v\n", err)
@@ -210,9 +212,10 @@ func main() {
 		for j := range z {
 			fmt.Fprintf(output, "%f,", z[j])
 		}
-		fmt.Fprintf(output, "%f,%f,%f,%f,%f",
-			Y[end], mu[0], sigma[0], lml0, lml)
-		for i := 0; i != m.GP.Simil.NTheta() + m.GP.Noise.NTheta() + m.Priors.NTheta(); i++ {
+		nTheta := m.GP.Simil.NTheta() + m.GP.Noise.NTheta() + m.Priors.NTheta()
+		fmt.Fprintf(output, "%f,%f,%f,%f,%f,%f",
+			Y[end], mu[0], sigma[0], math.Exp(x[nTheta+end-2]), lml0, lml)
+		for i := 0; i != nTheta; i++ {
 			fmt.Fprintf(output, ",%f", math.Exp(x[i]))
 		}
 		fmt.Fprintln(output)
@@ -263,6 +266,7 @@ RECORDS:
 
 	return x, y, err
 }
+
 var selfCheckData = `0.1,-3.376024003717768007e+00
 0.3,-1.977828720240523142e+00
 0.5,-1.170229755402199645e+00
