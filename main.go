@@ -25,7 +25,7 @@ import (
 var (
 	ALG   = "lbfgs" // or "momentum", "adam"
 	QUIET = false
-	EPOCHS     = 1000  // epochs or major iterations
+	NITER     = 1000   // number of iterations
 	THRESHOLD  = 1E-6  // gradient threshold
 	RATE       = 0.01  // learning rate (for Adam)
 	DECAY      = 0.99  // rate decay
@@ -48,10 +48,8 @@ to demonstrate basic functionality.
 	flag.StringVar(&ALG, "a", ALG, "optimization algorithm "+
 		"(momentum, adam or lbfgs)")
 	flag.BoolVar(&QUIET, "q", QUIET, "less output")
-	flag.IntVar(&EPOCHS, "e", EPOCHS,
-		"number of epochs or major iterations")
-	flag.Float64Var(&THRESHOLD, "t", THRESHOLD,
-		"gradient threshold")
+	flag.IntVar(&NITER, "n", NITER, "number of iterations")
+	flag.Float64Var(&THRESHOLD, "t", THRESHOLD, "gradient threshold")
 	flag.Float64Var(&RATE, "r", RATE, "learning rate (Momentum, Adam)")
 	flag.Float64Var(&DECAY, "d", DECAY, "rate decay (Momentum)")
 	flag.Float64Var(&GAMMA, "g", GAMMA, "momentum factor (Momentum)")
@@ -117,9 +115,7 @@ func main() {
 		// Construct the initial point in the optimization space
 		x := make([]float64, nTheta + end-1)
 		for i := range x {
-			y := x[i]
 			x[i] = 0.1*rand.NormFloat64()
-			x[i] = y
 		}
 
 		// Initial log likelihood
@@ -140,22 +136,22 @@ func main() {
 					Gamma: GAMMA,
 				}
 			}
-			epoch := 0
-		Epochs:
-			for ; epoch != EPOCHS; epoch++ {
+			iter := 0
+		Iters:
+			for ; iter != NITER; iter++ {
 				ll, grad := opt.Step(m, x)
-				if !QUIET && (epoch+1)%10 == 0 {
-					fmt.Fprintf(os.Stderr, "%05d %10.3f\r", epoch+1, ll)
+				if !QUIET && (iter+1)%10 == 0 {
+					fmt.Fprintf(os.Stderr, "%05d %10.3f\r", iter+1, ll)
 				}
 				for i := range grad {
 					if math.Abs(grad[i]) >= THRESHOLD {
-						continue Epochs
+						continue Iters
 					}
 				}
-				break Epochs
+				break Iters
 			}
 			if !QUIET {
-				fmt.Printf("Epochs: %d\n", epoch)
+				fmt.Printf("Iterations: %d\n", iter)
 			}
 		case "lbfgs":
 			Func, Grad := infer.FuncGrad(m)
@@ -163,8 +159,8 @@ func main() {
 
 			result, err := optimize.Minimize(
 				p, x, &optimize.Settings{
-					MajorIterations:   0,
-					GradientThreshold: 0,
+					MajorIterations:   NITER,
+					GradientThreshold: THRESHOLD,
 					Concurrent:        0,
 				}, nil)
 			if err != nil && result.Stats.MajorIterations < 10 {
