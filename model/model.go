@@ -4,7 +4,6 @@ import (
 	"bitbucket.org/dtolpin/gogp/gp"
 	"bitbucket.org/dtolpin/infergo/model"
 	. "bitbucket.org/dtolpin/wigp/priors/ad"
-	"fmt"
 	"math"
 )
 
@@ -34,9 +33,9 @@ func (m *Model) Observe(x []float64) float64 {
 	// Warped inputs
 	copy(xGP[k:], m.X[0])
 	k += m.GP.NDim
-	for i := range m.X[1:] {
-		for j := range m.X[i] {
-			xGP[k] = m.X[i][j] +
+	for i := 0; i != len(m.X) - 1; i++ {
+		for j := 0; j != m.GP.NDim; j++ {
+			xGP[k] = xGP[k - m.GP.NDim] +
 				math.Exp(x[l])*(m.X[i+1][j]-m.X[i][j])
 			k++
 			l++
@@ -68,23 +67,20 @@ func (m *Model) Observe(x []float64) float64 {
 	l += m.Priors.NTheta()
 
 	// Transformations
-	grad := make([]float64, len(x))
 	for i := 0; i != len(m.X)-1; i++ {
 		for j := 0; j != m.GP.NDim; j++ {
 			// dLoss/dloglambda = lambda * dx * sum dLoss/dx
 			lambda := math.Exp(x[l])
 			dx := m.X[i+1][j] - m.X[i][j]
 			sum := 0.
-			for ii := i + 1; ii != len(m.X); ii++ {
-				sum += gGP[k+ii*m.GP.NDim+j]
+			for ii := 1; ii != len(m.X) - i; ii++ {
+				sum += gGP[k + ii*m.GP.NDim]
 			}
+			m.grad[l] += lambda * dx * sum
 			k++
-			grad[l] = lambda * dx * sum
-			m.grad[l] += grad[l]
 			l++
 		}
 	}
-	fmt.Printf("x: %v\nPriors:\t%v\nGP:\t%v\nGrad:\t%v\nmGrad:\t%v\n\n", x, gPriors, gGP, grad, m.grad)
 
 	return ll
 }

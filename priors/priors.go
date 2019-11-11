@@ -2,13 +2,14 @@ package priors
 
 import (
 	. "bitbucket.org/dtolpin/infergo/dist"
+	"math"
 )
 
 type Priors struct {
 }
 
 func (m *Priors) NTheta() int {
-	return 0
+	return 1
 }
 
 func (m *Priors) Observe(x []float64) float64 {
@@ -16,6 +17,7 @@ func (m *Priors) Observe(x []float64) float64 {
 		c  = iota // output scale
 		l         // length scale
 		s         // noise
+		t		  // warping
 		i0        // first transformation (relative step change)
 	)
 
@@ -33,7 +35,8 @@ func (m *Priors) Observe(x []float64) float64 {
 	// Priors of the renewal process
 	// -----------------------------
 	//  We allow inputs to move slightly.
-	ll += Normal.Logps(0, 2, x[i0:]...)
+	ll += Normal.Logp(0, 0.25, x[t])
+	ll += Normal.Logps(0, math.Exp(x[t]), x[i0:]...)
 
 	return ll
 }

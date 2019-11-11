@@ -32,24 +32,24 @@ func TestGradient(t *testing.T) {
 		Y []float64
 	} {
 		{ 
-			x: []float64{0., 0, 0, 0},
-			X: [][]float64{{0.}, {1.}},
+			x: []float64{0, 0, 0, 0, 0},
+			X: [][]float64{{0}, {1}},
 			Y: []float64{-0.3, 0.2},
 		},
 		{ 
-			x: []float64{1., 1., 1., 1.},
-			X: [][]float64{{0.}, {1.}},
+			x: []float64{1, 1, 1, 1, 1},
+			X: [][]float64{{0}, {1}},
 			Y: []float64{-0.3, 0.3},
 		},
 		{ 
-			x: []float64{0., 0, 0, 0, 0},
-			X: [][]float64{{0.}, {1.}, {2.}},
+			x: []float64{0, 0, 0, 0, 0, 0},
+			X: [][]float64{{0}, {1}, {2}},
 			Y: []float64{-0.3, 0.2, -0.1},
 		},
 		{ 
-			x: []float64{0., 0, 0, 0, 0, 0},
-			X: [][]float64{{0.}, {1.}, {2.}, {3.}},
-			Y: []float64{-0.3, 0.2, -0.1, 0.},
+			x: []float64{0, 0, 0, 0, 0, 0, 0},
+			X: [][]float64{{0}, {1}, {2}, {3}},
+			Y: []float64{-0.3, 0.2, -0.1, 0},
 		},
 	} {
 		m.X = c.X
@@ -63,7 +63,7 @@ func TestGradient(t *testing.T) {
 			dldx := (ll - ll0)/dx
 			c.x[j] = x0
 			if math.Abs(grad[j] - dldx) > eps {
-				t.Errorf("%d: dl/dx%d mismatch: got %.4f, want %.4f",
+				t.Errorf("%d: dl/dx%d mismatch: got %.8f, want %.4f",
 					i, j, dldx, grad[j])
 			}
 		}
