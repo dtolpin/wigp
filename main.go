@@ -15,9 +15,22 @@ import (
 	"gonum.org/v1/gonum/stat"
 	"io"
 	"math"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
+	"time"
+)
+
+var (
+	ALG   = "lbfgs" // or "momentum", "adam"
+	QUIET = false
+	EPOCHS     = 1000  // epochs or major iterations
+	THRESHOLD  = 1E-6  // gradient threshold
+	RATE       = 0.01  // learning rate (for Adam)
+	DECAY      = 0.99  // rate decay
+	GAMMA      = 0.1   // momentum factor
+
 )
 
 func init() {
@@ -32,6 +45,17 @@ to demonstrate basic functionality.
 `, os.Args[0], os.Args[0])
 		flag.PrintDefaults()
 	}
+	flag.StringVar(&ALG, "a", ALG, "optimization algorithm "+
+		"(momentum, adam or lbfgs)")
+	flag.BoolVar(&QUIET, "q", QUIET, "less output")
+	flag.IntVar(&EPOCHS, "e", EPOCHS,
+		"number of epochs or major iterations")
+	flag.Float64Var(&THRESHOLD, "t", THRESHOLD,
+		"gradient threshold")
+	flag.Float64Var(&RATE, "r", RATE, "learning rate (Momentum, Adam)")
+	flag.Float64Var(&DECAY, "d", DECAY, "rate decay (Momentum)")
+	flag.Float64Var(&GAMMA, "g", GAMMA, "momentum factor (Momentum)")
+	rand.Seed(time.Now().UTC().UnixNano())
 }
 
 func main() {
@@ -49,16 +73,8 @@ func main() {
 		panic("usage")
 	}
 
-	gp := &gp.GP{
-		NDim:  1,
-		Simil: Simil,
-		Noise: Noise,
-	}
-	m := &Model{
-		GP:     gp,
-		Priors: &Priors{},
-	}
-
+	// Data
+	// ----
 	// Load the data
 	var err error
 	fmt.Fprint(os.Stderr, "loading...")
@@ -74,48 +90,93 @@ func main() {
 		Y[i] = (Y[i] - meany) / stdy
 	}
 
+	// Problem
+	// -------
+	// Define the problem
+	priors := &Priors{}
+	gp := &gp.GP{
+		NDim:  1,
+		Simil: Simil,
+		Noise: Noise,
+	}
+	m := &Model{
+		GP:     gp,
+		Priors: priors,
+	}
+	nTheta := gp.Simil.NTheta()+gp.Noise.NTheta()+m.Priors.NTheta()
+
+	// Inference
+	// ---------
 	// Forecast one step out of sample, iteratively.
 	// Output data augmented with predictions.
 	fmt.Fprintln(os.Stderr, "Forecasting...")
 	for end := 1; end != len(X); end++ {
 		m.X = X[:end]
 		m.Y = Y[:end]
-		x := make([]float64,
-			gp.Simil.NTheta()+gp.Noise.NTheta()+m.Priors.NTheta()+end-1)
 
 		// Construct the initial point in the optimization space
-
-		// Optimize the parameters
-		Func, Grad := infer.FuncGrad(m)
-		p := optimize.Problem{Func: Func, Grad: Grad}
+		x := make([]float64, nTheta + end-1)
+		for i := range x {
+			y := x[i]
+			x[i] = 0.1*rand.NormFloat64()
+			x[i] = y
+		}
 
 		// Initial log likelihood
-		lml0 := m.Observe(x)
+		ll0 := m.Observe(x)
 		model.DropGradient(m)
 
-		// For some kernels and data, the optimizing of
-		// hyperparameters does not make sense with too few
-		// points.
-		result, err := optimize.Minimize(
-			p, x, &optimize.Settings{
-				MajorIterations:   0,
-				GradientThreshold: 0,
-				Concurrent:        0,
-			}, nil)
-		// We do not need the optimizer to `officially'
-		// converge, a few iterations usually bring most
-		// of the improvement. However, in pathological
-		// cases even a single iteration does not succeed,
-		// and we want to report that.
-		if err != nil && result.Stats.MajorIterations == 1 {
-			// There was a problem and the optimizer stopped
-			// on first iteration.
-			fmt.Fprintf(os.Stderr, "Failed to optimize: %v\n", err)
+		// Optimize the parameters
+		switch ALG {
+		case "momentum", "adam":
+			var opt infer.Grad
+			switch ALG {
+			case "momentum":
+				opt = &infer.Adam{Rate: RATE}
+			case "adam":
+				opt = &infer.Momentum{
+					Rate: RATE,
+					Decay: DECAY,
+					Gamma: GAMMA,
+				}
+			}
+			epoch := 0
+		Epochs:
+			for ; epoch != EPOCHS; epoch++ {
+				ll, grad := opt.Step(m, x)
+				if !QUIET && (epoch+1)%10 == 0 {
+					fmt.Fprintf(os.Stderr, "%05d %10.3f\r", epoch+1, ll)
+				}
+				for i := range grad {
+					if math.Abs(grad[i]) >= THRESHOLD {
+						continue Epochs
+					}
+				}
+				break Epochs
+			}
+			if !QUIET {
+				fmt.Printf("Epochs: %d\n", epoch)
+			}
+		case "lbfgs":
+			Func, Grad := infer.FuncGrad(m)
+			p := optimize.Problem{Func: Func, Grad: Grad}
+
+			result, err := optimize.Minimize(
+				p, x, &optimize.Settings{
+					MajorIterations:   0,
+					GradientThreshold: 0,
+					Concurrent:        0,
+				}, nil)
+			if err != nil && result.Stats.MajorIterations < 10 {
+				fmt.Fprintf(os.Stderr,
+					"%d: stuck after %d iterations: %v\n",
+					end, result.Stats.MajorIterations, err)
+			}
+			x = result.X
 		}
-		x = result.X
 
 		// Final log likelihood
-		lml := m.Observe(x)
+		ll := m.Observe(x)
 		model.DropGradient(m)
 		ad.DropAllTapes()
 
@@ -132,9 +193,8 @@ func main() {
 		for j := range z {
 			fmt.Fprintf(output, "%f,", z[j])
 		}
-		nTheta := m.GP.Simil.NTheta() + m.GP.Noise.NTheta() + m.Priors.NTheta()
 		fmt.Fprintf(output, "%f,%f,%f,%f,%f,%f",
-			Y[end], mu[0], sigma[0], math.Exp(x[nTheta+end-2]), lml0, lml)
+			Y[end], mu[0], sigma[0], math.Exp(x[nTheta+end-2]), ll0, ll)
 		for i := 0; i != nTheta; i++ {
 			fmt.Fprintf(output, ",%f", math.Exp(x[i]))
 		}

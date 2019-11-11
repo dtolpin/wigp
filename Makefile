@@ -3,7 +3,7 @@ all: selfcheck
 selfcheck: wigp
 	./wigp selfcheck
 
-wigp: kernel/ad/kernel.go priors/ad/priors.go main.go
+wigp: kernel/ad/kernel.go priors/ad/priors.go model/model.go main.go 
 	go build .
 
 kernel/ad/kernel.go: kernel/kernel.go

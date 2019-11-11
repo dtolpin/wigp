@@ -4,6 +4,7 @@ import (
 	"bitbucket.org/dtolpin/gogp/gp"
 	"bitbucket.org/dtolpin/infergo/model"
 	. "bitbucket.org/dtolpin/wigp/priors/ad"
+	"fmt"
 	"math"
 )
 
@@ -67,6 +68,7 @@ func (m *Model) Observe(x []float64) float64 {
 	l += m.Priors.NTheta()
 
 	// Transformations
+	grad := make([]float64, len(x))
 	for i := 0; i != len(m.X)-1; i++ {
 		for j := 0; j != m.GP.NDim; j++ {
 			// dLoss/dloglambda = lambda * dx * sum dLoss/dx
@@ -77,10 +79,12 @@ func (m *Model) Observe(x []float64) float64 {
 				sum += gGP[k+ii*m.GP.NDim+j]
 			}
 			k++
-			m.grad[l] += lambda * dx * sum
+			grad[l] = lambda * dx * sum
+			m.grad[l] += grad[l]
 			l++
 		}
 	}
+	fmt.Printf("x: %v\nPriors:\t%v\nGP:\t%v\nGrad:\t%v\nmGrad:\t%v\n\n", x, gPriors, gGP, grad, m.grad)
 
 	return ll
 }
