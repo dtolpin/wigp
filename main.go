@@ -59,8 +59,6 @@ func main() {
 		Priors: &Priors{},
 	}
 
-	// Collect results in a buffer to patch with updated inputs
-
 	// Load the data
 	var err error
 	fmt.Fprint(os.Stderr, "loading...")
