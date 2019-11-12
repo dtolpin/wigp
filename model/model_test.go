@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	dx = 1E-8
-	eps = 1E-4
+	dx  = 1e-8
+	eps = 1e-4
 )
 
 func TestGradient(t *testing.T) {
@@ -26,27 +26,27 @@ func TestGradient(t *testing.T) {
 		Priors: priors,
 	}
 
-	for i, c := range []struct{
+	for i, c := range []struct {
 		x []float64
 		X [][]float64
 		Y []float64
-	} {
-		{ 
+	}{
+		{
 			x: []float64{0, 0, 0, 0, 0},
 			X: [][]float64{{0}, {1}},
 			Y: []float64{-0.3, 0.2},
 		},
-		{ 
+		{
 			x: []float64{1, 1, 1, 1, 1},
 			X: [][]float64{{0}, {1}},
 			Y: []float64{-0.3, 0.3},
 		},
-		{ 
+		{
 			x: []float64{0, 0, 0, 0, 0, 0},
 			X: [][]float64{{0}, {1}, {2}},
 			Y: []float64{-0.3, 0.2, -0.1},
 		},
-		{ 
+		{
 			x: []float64{0, 0, 0, 0, 0, 0, 0},
 			X: [][]float64{{0}, {1}, {2}, {3}},
 			Y: []float64{-0.3, 0.2, -0.1, 0},
@@ -60,9 +60,9 @@ func TestGradient(t *testing.T) {
 			x0 := c.x[j]
 			c.x[j] += dx
 			ll := m.Observe(c.x)
-			dldx := (ll - ll0)/dx
+			dldx := (ll - ll0) / dx
 			c.x[j] = x0
-			if math.Abs(grad[j] - dldx) > eps {
+			if math.Abs(grad[j]-dldx) > eps {
 				t.Errorf("%d: dl/dx%d mismatch: got %.8f, want %.4f",
 					i, j, dldx, grad[j])
 			}

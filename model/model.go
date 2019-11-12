@@ -7,7 +7,6 @@ import (
 	"math"
 )
 
-
 type Model struct {
 	Priors *Priors
 	GP     *gp.GP
@@ -33,9 +32,9 @@ func (m *Model) Observe(x []float64) float64 {
 	// Warped inputs
 	copy(xGP[k:], m.X[0])
 	k += m.GP.NDim
-	for i := 0; i != len(m.X) - 1; i++ {
+	for i := 0; i != len(m.X)-1; i++ {
 		for j := 0; j != m.GP.NDim; j++ {
-			xGP[k] = xGP[k - m.GP.NDim] +
+			xGP[k] = xGP[k-m.GP.NDim] +
 				math.Exp(x[l])*(m.X[i+1][j]-m.X[i][j])
 			k++
 			l++
@@ -73,8 +72,8 @@ func (m *Model) Observe(x []float64) float64 {
 			lambda := math.Exp(x[l])
 			dx := m.X[i+1][j] - m.X[i][j]
 			sum := 0.
-			for ii := 1; ii != len(m.X) - i; ii++ {
-				sum += gGP[k + ii*m.GP.NDim]
+			for ii := 1; ii != len(m.X)-i; ii++ {
+				sum += gGP[k+ii*m.GP.NDim]
 			}
 			m.grad[l] += lambda * dx * sum
 			k++

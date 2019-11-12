@@ -6,8 +6,8 @@ import (
 	"bitbucket.org/dtolpin/infergo/infer"
 	"bitbucket.org/dtolpin/infergo/model"
 	. "bitbucket.org/dtolpin/wigp/kernel/ad"
-	. "bitbucket.org/dtolpin/wigp/priors/ad"
 	. "bitbucket.org/dtolpin/wigp/model"
+	. "bitbucket.org/dtolpin/wigp/priors/ad"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -23,13 +23,13 @@ import (
 )
 
 var (
-	ALG   = "lbfgs" // or "momentum", "adam"
-	QUIET = false
-	NITER     = 1000   // number of iterations
-	THRESHOLD  = 1E-6  // gradient threshold
-	RATE       = 0.01  // learning rate (for Adam)
-	DECAY      = 0.99  // rate decay
-	GAMMA      = 0.1   // momentum factor
+	ALG       = "lbfgs" // or "momentum", "adam"
+	QUIET     = false
+	NITER     = 1000 // number of iterations
+	THRESHOLD = 1e-6 // gradient threshold
+	RATE      = 0.01 // learning rate (for Adam)
+	DECAY     = 0.99 // rate decay
+	GAMMA     = 0.1  // momentum factor
 
 )
 
@@ -101,7 +101,7 @@ func main() {
 		GP:     gp,
 		Priors: priors,
 	}
-	nTheta := gp.Simil.NTheta()+gp.Noise.NTheta()+m.Priors.NTheta()
+	nTheta := gp.Simil.NTheta() + gp.Noise.NTheta() + m.Priors.NTheta()
 
 	// Inference
 	// ---------
@@ -113,9 +113,9 @@ func main() {
 		m.Y = Y[:end]
 
 		// Construct the initial point in the optimization space
-		x := make([]float64, nTheta + end-1)
+		x := make([]float64, nTheta+end-1)
 		for i := range x {
-			x[i] = 0.1*rand.NormFloat64()
+			x[i] = 0.1 * rand.NormFloat64()
 		}
 
 		// Initial log likelihood
@@ -131,7 +131,7 @@ func main() {
 				opt = &infer.Adam{Rate: RATE}
 			case "adam":
 				opt = &infer.Momentum{
-					Rate: RATE,
+					Rate:  RATE,
 					Decay: DECAY,
 					Gamma: GAMMA,
 				}
