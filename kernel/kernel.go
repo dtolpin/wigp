@@ -11,7 +11,7 @@ var Simil simil
 
 func (simil) Observe(x []float64) float64 {
 	const (
-		c  = iota // output scale
+		c  = iota // variance
 		l         // length scale
 		xa        // first point
 		xb        // second point

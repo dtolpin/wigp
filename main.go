@@ -108,6 +108,15 @@ func main() {
 	// Forecast one step out of sample, iteratively.
 	// Output data augmented with predictions.
 	fmt.Fprintln(os.Stderr, "Forecasting...")
+	for i := 0; i != m.GP.NDim; i++ {
+		fmt.Fprintf(output, "x[%d],", i)
+	}
+	fmt.Fprintf(output, "%s,%s,%s,%s,%s,%s",
+		"Y", "mu", "sigma", "lambda", "ll0", "ll")
+	for i := 0; i != nTheta; i++ {
+		fmt.Fprintf(output, ",theta[%d]", i)
+	}
+	fmt.Fprintln(output)
 	for end := 1; end != len(X); end++ {
 		m.X = X[:end]
 		m.Y = Y[:end]
@@ -149,9 +158,6 @@ func main() {
 					}
 				}
 				break Iters
-			}
-			if !QUIET {
-				fmt.Printf("Iterations: %d\n", iter)
 			}
 		case "lbfgs":
 			Func, Grad := infer.FuncGrad(m)
