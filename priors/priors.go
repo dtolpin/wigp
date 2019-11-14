@@ -35,8 +35,10 @@ func (m *Priors) Observe(x []float64) float64 {
 	// Priors of the renewal process
 	// -----------------------------
 	//  We allow the inputs to move somewhat.
-	ll += Normal.Logp(-0.5, 1/(1 + float64(len(x[i0:]))), x[t])
-	ll += Normal.Logps(-0.125, math.Exp(x[t]), x[i0:]...)
+	sigma := 1/math.Sqrt(1 + float64(len(x[i0:])))
+	mu := - sigma*sigma/2
+	ll += Normal.Logp(mu, sigma, x[t])
+	ll += Normal.Logps(0, math.Exp(x[t]), x[i0:]...)
 
 	return ll
 }
