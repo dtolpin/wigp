@@ -15,10 +15,10 @@ const (
 )
 
 func TestGradient(t *testing.T) {
-	priors := &Priors{}
+	priors := &ARPriors{}
 	gp := &gp.GP{
-		NDim:  1,
-		Simil: Simil,
+		NDim:  2,
+		Simil: AR,
 		Noise: Noise,
 	}
 	m := &Model{

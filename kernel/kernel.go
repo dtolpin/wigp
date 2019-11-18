@@ -19,7 +19,7 @@ func (ar) Observe(x []float64) float64 {
 		_
 	)
 
-	return x[c] * kernel.Matern52.Cov(x[l], x[wxa], x[wxb])
+	return x[c]*x[c] * kernel.Matern52.Cov(x[l], x[wxa], x[wxb])
 }
 
 func (ar) NTheta() int { return 2 }
@@ -42,9 +42,9 @@ func (k *SAR) Observe(x []float64) float64 {
 		xb
 	)
 
-	return x[c1]*kernel.Matern52.Cov(x[l1], x[wxa], x[wxb]) +
+	return x[c1]*x[c1]*kernel.Matern52.Cov(x[l1], x[wxa], x[wxb]) +
 		// periodic kernel sees unwarped inputs
-		x[c2]*kernel.Periodic.Cov(x[l2], k.Period, x[xa], x[xb])
+		x[c2]*x[c2]*kernel.Periodic.Cov(x[l2], k.Period, x[xa], x[xb])
 }
 
 func (SAR) NTheta() int { return 4 }
