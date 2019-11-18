@@ -32,7 +32,10 @@ var (
 	GAMMA     = 0.1   // momentum factor
 	SEASONAL  = false // whether to include seasonal component
 	PERIOD    = 10.   // the period of the seasonal component
+	NOISE     = false // add noise to predictions
 	NOWARPING = false // turn off warping
+	SHOWWARP  = false // warp observations on output
+
 )
 
 func init() {
@@ -55,9 +58,11 @@ to demonstrate basic functionality.
 	flag.Float64Var(&RATE, "r", RATE, "learning rate (Momentum, Adam)")
 	flag.Float64Var(&DECAY, "d", DECAY, "rate decay (Momentum)")
 	flag.Float64Var(&GAMMA, "g", GAMMA, "momentum factor (Momentum)")
-	flag.BoolVar(&SEASONAL, "s", SEASONAL, "seasonal component in kernel")
+	flag.BoolVar(&SEASONAL, "seasonal", SEASONAL, "seasonal component in kernel")
 	flag.Float64Var(&PERIOD, "p", PERIOD, "period of seasonal component")
-	flag.BoolVar(&NOWARPING, "nw", NOWARPING, "turn off warping")
+	flag.BoolVar(&NOISE, "noise", NOISE, "add noise to predictions")
+	flag.BoolVar(&NOWARPING, "no-warping", NOWARPING, "turn off warping")
+	flag.BoolVar(&SHOWWARP, "show-warp", SHOWWARP, "warp observations on output")
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
@@ -86,6 +91,13 @@ func main() {
 		panic(err)
 	}
 	fmt.Fprintln(os.Stderr, "done")
+
+	// Normalize X
+	start := X[0][0]
+	step := (X[len(X)-1][0] - start)/float64(len(X) - 1)
+	for i := range X {
+		X[i][0] = (X[i][0] - start)/step
+	}
 
 	// Normalize Y
 	meany, stdy := stat.MeanStdDev(Y, nil)
@@ -204,8 +216,17 @@ func main() {
 
 		// Forecast
 		Z := [][]float64{{0}}
-		Z[0][0] = gpr.X[end-1][0] + (X[end][0]-X[end-1][0])*math.Exp(x[len(x)-1])
+		if SHOWWARP {
+			Z[0][0] = gpr.X[end-1][0] + (X[end][0]-X[end-1][0])*math.Exp(x[len(x)-1])
+		} else {
+			Z[0][0] = X[end][0]
+		}
 		mu, sigma, err := m.GP.Produce(Z)
+		if NOISE {
+			for i := range sigma {
+				sigma[i] += 0.1*math.Sqrt(gpr.ThetaNoise[0])
+			}
+		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to forecast: %v\n", err)
 		}
