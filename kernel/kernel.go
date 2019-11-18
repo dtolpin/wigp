@@ -11,12 +11,12 @@ var AR ar
 
 func (ar) Observe(x []float64) float64 {
 	const (
-		c  = iota // variance
-		l         // length scale
+		c   = iota // variance
+		l          // length scale
 		wxa        // first point
-		xa	
-		wxb        // second point
-		xb
+		_
+		wxb // second point
+		_
 	)
 
 	return x[c] * kernel.Matern52.Cov(x[l], x[wxa], x[wxb])
@@ -24,29 +24,30 @@ func (ar) Observe(x []float64) float64 {
 
 func (ar) NTheta() int { return 2 }
 
-// The seasonal+autoregressive similarity kernel. We pretend 
-// we know the period, equal to 10.
-type sar struct{}
+// The seasonal+autoregressive similarity kernel. We pretend
+// we know the period.
+type SAR struct {
+	Period float64
+}
 
-var SAR sar
-
-func (sar) Observe(x []float64) float64 {
+func (k *SAR) Observe(x []float64) float64 {
 	const (
-		c1 = iota // trend variance
-		c2        // season variance
-		l1        // trend length scale
-		l2        // season length scale
+		c1  = iota // trend variance
+		c2         // season variance
+		l1         // trend length scale
+		l2         // season length scale
 		wxa        // first point
 		xa
-		wxb        // second point
+		wxb // second point
 		xb
 	)
 
-	return x[c1]*kernel.Matern52.Cov(x[l1], x[xa], x[xb]) +
-		x[c2]*kernel.Periodic.Cov(x[l2], 10, x[xa], x[xb])
+	return x[c1]*kernel.Matern52.Cov(x[l1], x[wxa], x[wxb]) +
+		// periodic kernel sees unwarped inputs
+		x[c2]*kernel.Periodic.Cov(x[l2], k.Period, x[xa], x[xb])
 }
 
-func (sar) NTheta() int { return 4 }
+func (SAR) NTheta() int { return 4 }
 
 // The noise kernel
 type noise struct{}

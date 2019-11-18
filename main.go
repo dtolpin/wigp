@@ -25,12 +25,14 @@ import (
 var (
 	ALG       = "lbfgs" // or "momentum", "adam"
 	QUIET     = false
-	NITER     = 1000 // number of iterations
-	THRESHOLD = 1e-6 // gradient threshold
-	RATE      = 0.01 // learning rate (for Adam)
-	DECAY     = 0.99 // rate decay
-	GAMMA     = 0.1  // momentum factor
-
+	NITER     = 1000  // number of iterations
+	THRESHOLD = 1e-6  // gradient threshold
+	RATE      = 0.01  // learning rate (for Adam)
+	DECAY     = 0.99  // rate decay
+	GAMMA     = 0.1   // momentum factor
+	SEASONAL  = false // whether to include seasonal component
+	PERIOD    = 10.   // the period of the seasonal component
+	NOWARPING = false // turn off warping
 )
 
 func init() {
@@ -53,6 +55,9 @@ to demonstrate basic functionality.
 	flag.Float64Var(&RATE, "r", RATE, "learning rate (Momentum, Adam)")
 	flag.Float64Var(&DECAY, "d", DECAY, "rate decay (Momentum)")
 	flag.Float64Var(&GAMMA, "g", GAMMA, "momentum factor (Momentum)")
+	flag.BoolVar(&SEASONAL, "s", SEASONAL, "seasonal component in kernel")
+	flag.Float64Var(&PERIOD, "p", PERIOD, "period of seasonal component")
+	flag.BoolVar(&NOWARPING, "nw", NOWARPING, "turn off warping")
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
@@ -91,17 +96,29 @@ func main() {
 	// Problem
 	// -------
 	// Define the problem
-	priors := &ARPriors{}
-	gp := &gp.GP{
-		NDim:  2,
-		Simil: AR,
-		Noise: Noise,
+	var gpr *gp.GP
+	var priors Priors
+	if SEASONAL {
+		priors = &SARPriors{}
+		gpr = &gp.GP{
+			NDim:  2,
+			Simil: &SAR{Period: PERIOD},
+			Noise: Noise,
+		}
+	} else {
+		priors = &ARPriors{}
+		gpr = &gp.GP{
+			NDim:  2,
+			Simil: AR,
+			Noise: Noise,
+		}
 	}
 	m := &Model{
-		GP:     gp,
-		Priors: priors,
+		NoWarping: NOWARPING,
+		GP:        gpr,
+		Priors:    priors,
 	}
-	nTheta := gp.Simil.NTheta() + gp.Noise.NTheta() + m.Priors.NTheta()
+	nTheta := gpr.Simil.NTheta() + gpr.Noise.NTheta() + m.Priors.NTheta()
 
 	// Inference
 	// ---------
@@ -120,8 +137,14 @@ func main() {
 
 		// Construct the initial point in the optimization space
 		x := make([]float64, nTheta+end-1)
-		for i := range x {
-			x[i] = 0.1 * rand.NormFloat64()
+		if NOWARPING {
+			for i := 0; i != nTheta; i++ {
+				x[i] = 0.1 * rand.NormFloat64()
+			}
+		} else {
+			for i := range x {
+				x[i] = 0.1 * rand.NormFloat64()
+			}
 		}
 
 		// Initial log likelihood
@@ -181,7 +204,7 @@ func main() {
 
 		// Forecast
 		Z := [][]float64{{0}}
-		Z[0][0] = gp.X[end-1][0] + X[end][0] - X[end-1][0]
+		Z[0][0] = gpr.X[end-1][0] + (X[end][0]-X[end-1][0])*math.Exp(x[len(x)-1])
 		mu, sigma, err := m.GP.Produce(Z)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to forecast: %v\n", err)

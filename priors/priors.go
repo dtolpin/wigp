@@ -1,8 +1,8 @@
 package priors
 
 import (
-	"bitbucket.org/dtolpin/infergo/model"
 	. "bitbucket.org/dtolpin/infergo/dist"
+	"bitbucket.org/dtolpin/infergo/model"
 	"math"
 )
 
@@ -23,7 +23,7 @@ func (m *ARPriors) Observe(x []float64) float64 {
 		c  = iota // variance
 		l         // length scale
 		s         // noise variance
-		t		  // warping
+		t         // warping
 		i0        // first transformation (relative step change)
 	)
 
@@ -41,8 +41,8 @@ func (m *ARPriors) Observe(x []float64) float64 {
 	// Priors of the renewal process
 	// -----------------------------
 	//  We allow the inputs to move somewhat.
-	sigma := 1/math.Sqrt(1 + float64(len(x[i0:])))
-	mu := - sigma*sigma/2
+	sigma := 1 / math.Sqrt(1+float64(len(x[i0:])))
+	mu := -sigma * sigma / 2
 	ll += Normal.Logp(mu, sigma, x[t])
 	ll += Normal.Logps(0, math.Exp(x[t]), x[i0:]...)
 
@@ -65,7 +65,7 @@ func (m *SARPriors) Observe(x []float64) float64 {
 		l1        // trend length scale
 		l2        // season length scale
 		s         // noise variance
-		t		  // warping
+		t         // warping
 		i0        // first transformation (relative step change)
 	)
 
@@ -75,7 +75,8 @@ func (m *SARPriors) Observe(x []float64) float64 {
 	// ------------------------------
 	// Variance is mostly less than 1.
 	ll += Normal.Logp(-1, 1, x[c1])
-	ll += Normal.Logp(-1, 1, x[c2])
+	// seasonality variance is normally lower than trend varaince
+	ll += Normal.Logp(x[c1]-math.Log(2), 1, x[c2])
 	// Length scale is around 1, in wide margins.
 	ll += Normal.Logp(-2, 2, x[l1])
 	ll += Normal.Logp(-2, 2, x[l2])
@@ -85,8 +86,8 @@ func (m *SARPriors) Observe(x []float64) float64 {
 	// Priors of the renewal process
 	// -----------------------------
 	//  We allow the inputs to move somewhat.
-	sigma := 1/math.Sqrt(1 + float64(len(x[i0:])))
-	mu := - sigma*sigma/2
+	sigma := 1 / math.Sqrt(1+float64(len(x[i0:])))
+	mu := -sigma * sigma / 2
 	ll += Normal.Logp(mu, sigma, x[t])
 	ll += Normal.Logps(0, math.Exp(x[t]), x[i0:]...)
 

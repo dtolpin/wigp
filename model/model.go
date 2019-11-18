@@ -8,11 +8,12 @@ import (
 )
 
 type Model struct {
-	Priors Priors
-	GP     *gp.GP
-	X      [][]float64
-	Y      []float64
-	grad   []float64
+	NoWarping bool
+	Priors    Priors
+	GP        *gp.GP
+	X         [][]float64
+	Y         []float64
+	grad      []float64
 }
 
 func (m *Model) Observe(x []float64) float64 {
@@ -36,9 +37,9 @@ func (m *Model) Observe(x []float64) float64 {
 	k++
 	copy(xGP[k:], m.X[0])
 	k += len(m.X[0])
-	for i := 0; i != len(m.X)-1; i++ {
+	for i := 1; i != len(m.X); i++ {
 		xGP[k] = xGP[k-m.GP.NDim] +
-			math.Exp(x[l])*(m.X[i+1][0]-m.X[i][0])
+			math.Exp(x[l])*(m.X[i][0]-m.X[i-1][0])
 		k++
 		l++
 		copy(xGP[k:], m.X[i])
@@ -69,18 +70,24 @@ func (m *Model) Observe(x []float64) float64 {
 	}
 	l += m.Priors.NTheta()
 
-	// Transformations
-	for i := 0; i != len(m.X)-1; i++ {
-		// dLoss/dloglambda = lambda * dx * sum dLoss/dx
-		lambda := math.Exp(x[l])
-		dx := m.X[i+1][0] - m.X[i][0]
-		sum := 0.
-		for ii := 1; ii != len(m.X)-i; ii++ {
-			sum += gGP[k+ii*m.GP.NDim]
+	if m.NoWarping {
+		for ; l != len(m.grad); l++ {
+			m.grad[l] = 0
 		}
-		m.grad[l] += lambda * dx * sum
-		k+= m.GP.NDim
-		l++
+	} else {
+		// Transformations
+		for i := 0; i != len(m.X)-1; i++ {
+			// dLoss/dloglambda = lambda * dx * sum dLoss/dx
+			lambda := math.Exp(x[l])
+			dx := m.X[i+1][0] - m.X[i][0]
+			sum := 0.
+			for ii := 1; ii != len(m.X)-i; ii++ {
+				sum += gGP[k+ii*m.GP.NDim]
+			}
+			m.grad[l] += lambda * dx * sum
+			k += m.GP.NDim
+			l++
+		}
 	}
 
 	return ll
