@@ -8,7 +8,7 @@ import (
 )
 
 type Model struct {
-	Priors *Priors
+	Priors Priors
 	GP     *gp.GP
 	X      [][]float64
 	Y      []float64

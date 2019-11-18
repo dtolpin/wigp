@@ -91,10 +91,10 @@ func main() {
 	// Problem
 	// -------
 	// Define the problem
-	priors := &Priors{}
+	priors := &ARPriors{}
 	gp := &gp.GP{
 		NDim:  2,
-		Simil: Simil,
+		Simil: AR,
 		Noise: Noise,
 	}
 	m := &Model{
