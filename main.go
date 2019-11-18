@@ -93,7 +93,7 @@ func main() {
 	// Define the problem
 	priors := &Priors{}
 	gp := &gp.GP{
-		NDim:  1,
+		NDim:  2,
 		Simil: Simil,
 		Noise: Noise,
 	}
@@ -108,11 +108,8 @@ func main() {
 	// Forecast one step out of sample, iteratively.
 	// Output data augmented with predictions.
 	fmt.Fprintln(os.Stderr, "Forecasting...")
-	for i := 0; i != m.GP.NDim; i++ {
-		fmt.Fprintf(output, "x[%d],", i)
-	}
-	fmt.Fprintf(output, "%s,%s,%s,%s,%s,%s",
-		"Y", "mu", "sigma", "lambda", "ll0", "ll")
+	fmt.Fprintf(output, "%s,%s,%s,%s,%s,%s,%s",
+		"X", "Y", "mu", "sigma", "lambda", "ll0", "ll")
 	for i := 0; i != nTheta; i++ {
 		fmt.Fprintf(output, ",theta[%d]", i)
 	}
@@ -191,10 +188,7 @@ func main() {
 		}
 
 		// Output forecasts
-		z := Z[0]
-		for j := range z {
-			fmt.Fprintf(output, "%f,", z[j])
-		}
+		fmt.Fprintf(output, "%f,", Z[0][0])
 		fmt.Fprintf(output, "%f,%f,%f,%f,%f,%f",
 			Y[end], mu[0], sigma[0], math.Exp(x[nTheta+end-2]), ll0, ll)
 		for i := 0; i != nTheta; i++ {

@@ -22,7 +22,7 @@ func (m *Model) Observe(x []float64) float64 {
 			len(m.X)*(m.GP.NDim+1))
 
 	// Kernel parameters
-	l := m.GP.Simil.NTheta() + m.GP.Noise.NTheta() // over m.X
+	l := m.GP.Simil.NTheta() + m.GP.Noise.NTheta() // over x
 	copy(xGP, x[:l])
 	k := l
 	l += m.Priors.NTheta()
@@ -30,15 +30,19 @@ func (m *Model) Observe(x []float64) float64 {
 	// Observations
 	// ------------
 	// Warped inputs
+	// The first dimension is copied twice, first
+	// warped than original
+	xGP[k] = m.X[0][0]
+	k++
 	copy(xGP[k:], m.X[0])
-	k += m.GP.NDim
+	k += len(m.X[0])
 	for i := 0; i != len(m.X)-1; i++ {
-		for j := 0; j != m.GP.NDim; j++ {
-			xGP[k] = xGP[k-m.GP.NDim] +
-				math.Exp(x[l])*(m.X[i+1][j]-m.X[i][j])
-			k++
-			l++
-		}
+		xGP[k] = xGP[k-m.GP.NDim] +
+			math.Exp(x[l])*(m.X[i+1][0]-m.X[i][0])
+		k++
+		l++
+		copy(xGP[k:], m.X[i])
+		k += len(m.X[i])
 	}
 	// Outputs
 	for i := range m.Y {
@@ -67,18 +71,16 @@ func (m *Model) Observe(x []float64) float64 {
 
 	// Transformations
 	for i := 0; i != len(m.X)-1; i++ {
-		for j := 0; j != m.GP.NDim; j++ {
-			// dLoss/dloglambda = lambda * dx * sum dLoss/dx
-			lambda := math.Exp(x[l])
-			dx := m.X[i+1][j] - m.X[i][j]
-			sum := 0.
-			for ii := 1; ii != len(m.X)-i; ii++ {
-				sum += gGP[k+ii*m.GP.NDim]
-			}
-			m.grad[l] += lambda * dx * sum
-			k++
-			l++
+		// dLoss/dloglambda = lambda * dx * sum dLoss/dx
+		lambda := math.Exp(x[l])
+		dx := m.X[i+1][0] - m.X[i][0]
+		sum := 0.
+		for ii := 1; ii != len(m.X)-i; ii++ {
+			sum += gGP[k+ii*m.GP.NDim]
 		}
+		m.grad[l] += lambda * dx * sum
+		k+= m.GP.NDim
+		l++
 	}
 
 	return ll

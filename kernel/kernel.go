@@ -14,6 +14,7 @@ func (simil) Observe(x []float64) float64 {
 		c  = iota // variance
 		l         // length scale
 		xa        // first point
+		_
 		xb        // second point
 	)
 
