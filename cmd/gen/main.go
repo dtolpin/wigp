@@ -60,8 +60,8 @@ const (
 	yVariance            = 1.
 	yLengthScale         = 10.
 	yPeriod              = 10.
-	ySeasonalVariance    = 4.
-	ySeasonalLengthScale = 2.5
+	ySeasonalVariance    = 1.
+	ySeasonalLengthScale = 2
 )
 
 type arkernel struct{}
@@ -126,6 +126,8 @@ func sample(g *gp.GP, xs <-chan float64, xys chan<- [2]float64) {
 }
 
 func main() {
+	flag.Parse()
+
 	gLambda := &gp.GP{
 		NDim:  1,
 		Simil: xKernel,

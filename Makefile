@@ -7,7 +7,7 @@ wigp: kernel/ad/kernel.go priors/ad/priors.go model/model.go main.go
 	go build .
 
 gen: cmd/gen/main.go
-	go build ./gmd/gen
+	go build ./cmd/gen
 
 kernel/ad/kernel.go: kernel/kernel.go
 	deriv kernel
