@@ -61,7 +61,7 @@ const (
 	yLengthScale         = 20.
 	yPeriod              = 10.
 	ySeasonalVariance    = 4.
-	ySeasonalLengthScale = 5. 
+	ySeasonalLengthScale = 5.
 )
 
 type tkernel struct{}
@@ -95,7 +95,7 @@ func (skernel) Observe(x []float64) float64 {
 		xb
 	)
 
-	return ySeasonalVariance*kernel.Periodic.Cov(ySeasonalLengthScale, yPeriod, x[xa], x[xb])
+	return ySeasonalVariance * kernel.Periodic.Cov(ySeasonalLengthScale, yPeriod, x[xa], x[xb])
 }
 
 func (skernel) Gradient() []float64 {
@@ -166,7 +166,7 @@ func main() {
 
 	// Seasonal component, if present, is added
 	// on the 'unwarped' inputs so that the period
-	// stays fixed. 
+	// stays fixed.
 	if SEASONAL {
 		gyS := &gp.GP{
 			NDim:  1,
@@ -179,7 +179,7 @@ func main() {
 	for y := range ys {
 		if SEASONAL {
 			xSs <- x
-			yS := <- ySs
+			yS := <-ySs
 			y += yS
 		}
 		fmt.Printf("%f,%f\n", x, y)

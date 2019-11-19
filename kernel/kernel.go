@@ -19,7 +19,7 @@ func (ar) Observe(x []float64) float64 {
 		_
 	)
 
-	return x[c]*x[c] * kernel.Matern52.Cov(x[l], x[wxa], x[wxb])
+	return x[c] * x[c] * kernel.Matern52.Cov(x[l], x[wxa], x[wxb])
 }
 
 func (ar) NTheta() int { return 2 }

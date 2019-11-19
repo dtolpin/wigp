@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+
+import numpy
+import GPy
+import deepgp
+import sys
+import argparse
+
+# Parse command-line arguments
+parser = argparse.ArgumentParser(prog='dgp')
+parser.add_argument('-s', '--start', type=int, default=10,
+                    help='minimum number of training points')
+parser.add_argument('-n', '--niter', type=int, default=100,
+                    help='maximum number of iterations')
+args = parser.parse_args()
+
+
+# read the data from the standard input
+data = numpy.genfromtxt(sys.stdin, delimiter=',')
+x = data[:,0:1]
+y = data[:,1:2]
+
+# normalize
+offset = y.mean()
+scale = y.std()
+yhat = (y - offset)/scale
+
+# predict
+START = args.start
+NITER = args.niter
+y_mean = []
+y_sd = []
+print("X,Y,mu,sigma")
+for n in range(START, len(x)-1):
+    # the model
+    hidden = 1
+    m = deepgp.DeepGP([y.shape[1], hidden, x.shape[1]],
+                      Y=yhat[:n],
+                      X=x[:n],
+                      inits=['PCA', 'PCA'],
+                      kernels=[GPy.kern.RBF(hidden, ARD=True),
+                               GPy.kern.Matern52(x.shape[1], ARD=True)],
+                      num_inducing=50, back_constraint=False)
+    for layer in m.layers:
+        layer.likelihood.variance.constrain_positive(warning=False)
+    m.obslayer.kern.variance.constrain_positive(warning=False)
+
+    m.optimize(messages=False,max_iters=NITER)
+
+    mean, var = m.predict(x[n:n+1])
+    sd = numpy.sqrt(var)
+
+    print("{},{},{},{}".format(x[n,0], yhat[n, 0], mean[0,0], sd[0,0]),
+          flush=True)

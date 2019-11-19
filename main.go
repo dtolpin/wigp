@@ -94,9 +94,9 @@ func main() {
 
 	// Normalize X
 	start := X[0][0]
-	step := (X[len(X)-1][0] - start)/float64(len(X) - 1)
+	step := (X[len(X)-1][0] - start) / float64(len(X)-1)
 	for i := range X {
-		X[i][0] = (X[i][0] - start)/step
+		X[i][0] = (X[i][0] - start) / step
 	}
 
 	// Normalize Y
@@ -222,7 +222,7 @@ func main() {
 		mu, sigma, err := m.GP.Produce(Z)
 		if NOISE {
 			for i := range sigma {
-				sigma[i] += 0.1*math.Sqrt(gpr.ThetaNoise[0])
+				sigma[i] += 0.1 * math.Sqrt(gpr.ThetaNoise[0])
 			}
 		}
 		if err != nil {
