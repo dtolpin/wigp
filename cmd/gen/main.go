@@ -58,10 +58,10 @@ func (xkernel) NTheta() int {
 
 const (
 	yVariance            = 1.
-	yLengthScale         = 10.
+	yLengthScale         = 20.
 	yPeriod              = 10.
 	ySeasonalVariance    = 1.
-	ySeasonalLengthScale = 2.
+	ySeasonalLengthScale = 2.5
 )
 
 type arkernel struct{}
@@ -107,7 +107,7 @@ func (sarkernel) NTheta() int {
 	return 0
 }
 
-func sample(g *gp.GP, xs <-chan float64, xys chan<- [2]float64) {
+func sample(g *gp.GP, xs <-chan float64, ys chan<- float64) {
 	for {
 		x := <-xs
 		X := [][]float64{{x}}
@@ -116,7 +116,7 @@ func sample(g *gp.GP, xs <-chan float64, xys chan<- [2]float64) {
 			panic(fmt.Errorf("produce: %v", err))
 		}
 		y := Y[0] + Sigma[0]*rand.NormFloat64()
-		xys <- [...]float64{x, y}
+		ys <- y
 		X = append(g.X, X...)
 		Y = append(g.Y, y)
 		if err := g.Absorb(X, Y); err != nil {
@@ -134,9 +134,9 @@ func main() {
 	}
 
 	grid := make(chan float64, 1)
-	lambdas := make(chan [2]float64, 1)
+	lambdas := make(chan float64, 1)
 	xs := make(chan float64, 1)
-	xys := make(chan [2]float64, 1)
+	ys := make(chan float64, 1)
 
 	// Sampling inputs
 	go func() {
@@ -149,8 +149,7 @@ func main() {
 		x := 0.
 		for lambda := range lambdas {
 			xs <- x
-			dx := math.Exp(lambda[1])
-			x += dx
+			x += math.Exp(lambda)
 		}
 	}()
 
@@ -165,8 +164,10 @@ func main() {
 		gy.Simil = arKernel
 	}
 
-	go sample(gy, xs, xys)
-	for xy := range xys {
-		fmt.Printf("%f %f\n", xy[0], xy[1])
+	go sample(gy, xs, ys)
+	x := 0.
+	for y := range ys {
+		fmt.Printf("%f %f\n", x, y)
+		x++
 	}
 }
