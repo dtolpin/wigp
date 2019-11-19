@@ -43,7 +43,6 @@ func (k *SAR) Observe(x []float64) float64 {
 	)
 
 	return x[c1]*x[c1]*kernel.Matern52.Cov(x[l1], x[wxa], x[wxb]) +
-		// periodic kernel sees unwarped inputs
 		x[c2]*x[c2]*kernel.Periodic.Cov(x[l2], k.Period, x[xa], x[xb])
 }
 

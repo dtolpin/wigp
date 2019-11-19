@@ -215,8 +215,10 @@ func main() {
 		ad.DropAllTapes()
 
 		// Forecast
-		Z := [][]float64{{0}}
-		Z[0][0] = gpr.X[end-1][0] + (X[end][0]-X[end-1][0])*math.Exp(x[len(x)-1])
+		Z := [][]float64{{
+			gpr.X[end-1][0] + (X[end][0]-X[end-1][0])*math.Exp(x[len(x)-1]),
+			X[end][0],
+		}}
 		mu, sigma, err := m.GP.Produce(Z)
 		if NOISE {
 			for i := range sigma {
