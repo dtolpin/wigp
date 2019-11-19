@@ -61,7 +61,7 @@ const (
 	yLengthScale         = 10.
 	yPeriod              = 10.
 	ySeasonalVariance    = 1.
-	ySeasonalLengthScale = 2
+	ySeasonalLengthScale = 2.
 )
 
 type arkernel struct{}
