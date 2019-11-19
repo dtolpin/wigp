@@ -167,7 +167,7 @@ func main() {
 	go sample(gy, xs, ys)
 	x := 0.
 	for y := range ys {
-		fmt.Printf("%f %f\n", x, y)
+		fmt.Printf("%f,%f\n", x, y)
 		x++
 	}
 }
