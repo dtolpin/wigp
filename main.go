@@ -216,11 +216,7 @@ func main() {
 
 		// Forecast
 		Z := [][]float64{{0}}
-		if SHOWWARP {
-			Z[0][0] = gpr.X[end-1][0] + (X[end][0]-X[end-1][0])*math.Exp(x[len(x)-1])
-		} else {
-			Z[0][0] = X[end][0]
-		}
+		Z[0][0] = gpr.X[end-1][0] + (X[end][0]-X[end-1][0])*math.Exp(x[len(x)-1])
 		mu, sigma, err := m.GP.Produce(Z)
 		if NOISE {
 			for i := range sigma {
@@ -232,7 +228,11 @@ func main() {
 		}
 
 		// Output forecasts
-		fmt.Fprintf(output, "%f,", Z[0][0])
+		if SHOWWARP {
+			fmt.Fprintf(output, "%f,", Z[0][0])
+		} else {
+			fmt.Fprintf(output, "%f,", X[end][0])
+		}
 		fmt.Fprintf(output, "%f,%f,%f,%f,%f,%f",
 			Y[end], mu[0], sigma[0], math.Exp(x[nTheta+end-2]), ll0, ll)
 		for i := 0; i != nTheta; i++ {

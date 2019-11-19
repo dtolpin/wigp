@@ -60,15 +60,15 @@ const (
 	yVariance            = 1.
 	yLengthScale         = 20.
 	yPeriod              = 10.
-	ySeasonalVariance    = 1.
-	ySeasonalLengthScale = 2.5
+	ySeasonalVariance    = 4.
+	ySeasonalLengthScale = 5. 
 )
 
-type arkernel struct{}
+type tkernel struct{}
 
-var arKernel arkernel
+var tKernel tkernel
 
-func (arkernel) Observe(x []float64) float64 {
+func (tkernel) Observe(x []float64) float64 {
 	const (
 		xa = iota
 		xb
@@ -77,33 +77,32 @@ func (arkernel) Observe(x []float64) float64 {
 	return yVariance * kernel.Matern52.Cov(ySeasonalLengthScale, x[xa], x[xb])
 }
 
-func (arkernel) Gradient() []float64 {
+func (tkernel) Gradient() []float64 {
 	return []float64{1, 1}
 }
 
-func (arkernel) NTheta() int {
+func (tkernel) NTheta() int {
 	return 0
 }
 
-type sarkernel struct{}
+type skernel struct{}
 
-var sarKernel sarkernel
+var sKernel skernel
 
-func (sarkernel) Observe(x []float64) float64 {
+func (skernel) Observe(x []float64) float64 {
 	const (
 		xa = iota
 		xb
 	)
 
-	return yVariance*kernel.Matern52.Cov(yLengthScale, x[xa], x[xb]) +
-		ySeasonalVariance*kernel.Periodic.Cov(ySeasonalLengthScale, yPeriod, x[xa], x[xb])
+	return ySeasonalVariance*kernel.Periodic.Cov(ySeasonalLengthScale, yPeriod, x[xa], x[xb])
 }
 
-func (sarkernel) Gradient() []float64 {
+func (skernel) Gradient() []float64 {
 	return []float64{1, 1}
 }
 
-func (sarkernel) NTheta() int {
+func (skernel) NTheta() int {
 	return 0
 }
 
@@ -137,6 +136,9 @@ func main() {
 	lambdas := make(chan float64, 1)
 	xs := make(chan float64, 1)
 	ys := make(chan float64, 1)
+	// for the seasonal component
+	xSs := make(chan float64, 1)
+	ySs := make(chan float64, 1)
 
 	// Sampling inputs
 	go func() {
@@ -156,17 +158,30 @@ func main() {
 	// Sampling outputs
 	gy := &gp.GP{
 		NDim:  1,
+		Simil: tKernel,
 		Noise: adkernel.ConstantNoise(0.01),
-	}
-	if SEASONAL {
-		gy.Simil = sarKernel
-	} else {
-		gy.Simil = arKernel
 	}
 
 	go sample(gy, xs, ys)
+
+	// Seasonal component, if present, is added
+	// on the 'unwarped' inputs so that the period
+	// stays fixed. 
+	if SEASONAL {
+		gyS := &gp.GP{
+			NDim:  1,
+			Simil: sKernel,
+		}
+		go sample(gyS, xSs, ySs)
+	}
+
 	x := 0.
 	for y := range ys {
+		if SEASONAL {
+			xSs <- x
+			yS := <- ySs
+			y += yS
+		}
 		fmt.Printf("%f,%f\n", x, y)
 		x++
 	}
