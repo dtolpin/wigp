@@ -1,5 +1,5 @@
-bitbucket.org/dtolpin/gogp v0.0.0-20191111202611-17bde75c2c02 h1:egNKoLhOipsW60A+YeMevCYWAdLkvkmCt1yjUxy57HM=
-bitbucket.org/dtolpin/gogp v0.0.0-20191111202611-17bde75c2c02/go.mod h1:eD1+6avAm65DwaL08NXRINpE2THxqMj5n26rQL+vBTo=
+bitbucket.org/dtolpin/gogp v0.0.0-20191118215111-6c6920701d45 h1:BIWkWP/pECgt5qptspVu0kfH7pnJPuwFBa1CGYl41pM=
+bitbucket.org/dtolpin/gogp v0.0.0-20191118215111-6c6920701d45/go.mod h1:eD1+6avAm65DwaL08NXRINpE2THxqMj5n26rQL+vBTo=
 bitbucket.org/dtolpin/infergo v0.6.6-0.20190905071935-d422c55e6ea1/go.mod h1:WlGUK0S56aPMj7wFXLLB1GfidyhF/ZJlw1H6zarv1yQ=
 bitbucket.org/dtolpin/infergo v0.6.6-0.20191114080646-3e632fbf2e77 h1:ohc7sIRVrI911XwlZzbzT+m3vFipOQDwHZjnzpPnjrM=
 bitbucket.org/dtolpin/infergo v0.6.6-0.20191114080646-3e632fbf2e77/go.mod h1:4sKEwH7GBlXytY0eEZm6dktoFFvQJ2Xvft2CXpiUVvA=
@@ -20,7 +20,6 @@ gonum.org/v1/gonum v0.0.0-20180816165407-929014505bf4/go.mod h1:Y+Yx5eoAFn32cQvJ
 gonum.org/v1/gonum v0.0.0-20190923210107-40fa6a493b3d/go.mod h1:9mxDZsDKxgMAuccQkewq682L+0eCu4dCN2yonUJTCLU=
 gonum.org/v1/gonum v0.6.0 h1:DJy6UzXbahnGUf1ujUNkh/NEtK14qMo2nvlBPs4U5yw=
 gonum.org/v1/gonum v0.6.0/go.mod h1:9mxDZsDKxgMAuccQkewq682L+0eCu4dCN2yonUJTCLU=
-gonum.org/v1/netlib v0.0.0-20190313105609-8cb42192e0e0 h1:OE9mWmgKkjJyEmDAAtGMPjXu+YNeGvK9VTSHY6+Qihc=
 gonum.org/v1/netlib v0.0.0-20190313105609-8cb42192e0e0/go.mod h1:wa6Ws7BG/ESfp6dHfk7C6KdzKA7wR7u/rKwOGE66zvw=
 gonum.org/v1/plot v0.0.0-20190515093506-e2840ee46a6b/go.mod h1:Wt8AAjI+ypCyYX3nZBvf6cAIx93T+c/OS2HFAYskSZc=
 rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
