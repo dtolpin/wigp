@@ -9,5 +9,10 @@ for pred in data/*.pred; do
 	else
 		nlpd=`$CMD -comma " " -noise -s 10 < $pred`
 	fi
+	if echo $name | grep -q '\.'; then
+		name=`echo $name|sed 's/\./,/'`
+	else
+		name=$name,warped
+	fi
 	echo $name,$nlpd
 done

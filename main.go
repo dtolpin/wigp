@@ -222,7 +222,7 @@ func main() {
 		mu, sigma, err := m.GP.Produce(Z)
 		if NOISE {
 			for i := range sigma {
-				sigma[i] += 0.1 * gpr.ThetaNoise[0]
+				sigma[i] += 0.1 * math.Exp(gpr.ThetaNoise[0])
 			}
 		}
 		if err != nil {
