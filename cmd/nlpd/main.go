@@ -49,7 +49,7 @@ func main() {
 	rdr.Read() // skip the header
 	sum := 0.
 	n := 0
-	for {
+	for ;; n++ {
 		record, err := rdr.Read()
 		if err == io.EOF {
 			break
@@ -71,10 +71,9 @@ func main() {
 				jnoise += len(record)
 			}
 			lognoise, _ := strconv.ParseFloat(record[jnoise], 64)
-			std += math.Exp(lognoise)
+			std += 0.1*math.Exp(lognoise)
 		}
 		sum += nlpd(y, mean, std)
-		n++
 	}
-	fmt.Println(sum/float64(n))
+	fmt.Printf("%f\n", sum/float64(n))
 }

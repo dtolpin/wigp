@@ -1,0 +1,13 @@
+#!/bin/sh
+
+CMD=`dirname $0`/nlpd
+
+for pred in data/*.pred; do
+	name=`echo $pred | gsed 's/.*\/\(.*\)\.pred/\1/'`
+	if echo $name | grep -q dgp; then
+		nlpd=`$CMD -comma " " < $pred`
+	else
+		nlpd=`$CMD -comma " " -noise -s 10 < $pred`
+	fi
+	echo $name,$nlpd
+done
