@@ -35,7 +35,7 @@ var (
 	NOISE     = false // add noise to predictions
 	NOWARPING = false // turn off warping
 	SHOWWARP  = false // warp observations on output
-
+	PARALLEL  = false // parallelize GP computations
 )
 
 func init() {
@@ -63,6 +63,7 @@ to demonstrate basic functionality.
 	flag.BoolVar(&NOISE, "noise", NOISE, "add noise to predictions")
 	flag.BoolVar(&NOWARPING, "no-warping", NOWARPING, "turn off warping")
 	flag.BoolVar(&SHOWWARP, "show-warp", SHOWWARP, "warp observations on output")
+	flag.BoolVar(&PARALLEL, "parallel", PARALLEL, "compute covariance in parallel")
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
@@ -79,6 +80,10 @@ func main() {
 		input = strings.NewReader(selfCheckData)
 	default:
 		panic("usage")
+	}
+
+	if PARALLEL {
+		ad.MTSafeOn()
 	}
 
 	// Data
@@ -116,6 +121,7 @@ func main() {
 			NDim:  2,
 			Simil: &SAR{Period: PERIOD},
 			Noise: Noise,
+			Parallel: ad.IsMTSafe(),
 		}
 	} else {
 		priors = &ARPriors{}
@@ -123,6 +129,7 @@ func main() {
 			NDim:  2,
 			Simil: AR,
 			Noise: Noise,
+			Parallel: ad.IsMTSafe(),
 		}
 	}
 	m := &Model{
