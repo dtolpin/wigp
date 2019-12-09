@@ -118,17 +118,17 @@ func main() {
 	if SEASONAL {
 		priors = &SARPriors{}
 		gpr = &gp.GP{
-			NDim:  2,
-			Simil: &SAR{Period: PERIOD},
-			Noise: Noise,
+			NDim:     2,
+			Simil:    &SAR{Period: PERIOD},
+			Noise:    Noise,
 			Parallel: ad.IsMTSafe(),
 		}
 	} else {
 		priors = &ARPriors{}
 		gpr = &gp.GP{
-			NDim:  2,
-			Simil: AR,
-			Noise: Noise,
+			NDim:     2,
+			Simil:    AR,
+			Noise:    Noise,
 			Parallel: ad.IsMTSafe(),
 		}
 	}

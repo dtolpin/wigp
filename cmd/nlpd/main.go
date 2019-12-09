@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	COMMA = ","
-	SKIP = 0
-	NOISE = false
+	COMMA  = ","
+	SKIP   = 0
+	NOISE  = false
 	JNOISE = -2
 )
 
@@ -37,7 +37,7 @@ func nlpd(y, mean, std float64) float64 {
 	vari := std * std
 	logv := math.Log(vari)
 	d := y - mean
-	return 0.5 * (math.Log(2) * math.Log(math.Pi) + d*d/vari + logv)
+	return 0.5 * (math.Log(2)*math.Log(math.Pi) + d*d/vari + logv)
 }
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	rdr.Read() // skip the header
 	sum := 0.
 	n := 0
-	for ;; n++ {
+	for ; ; n++ {
 		record, err := rdr.Read()
 		if err == io.EOF {
 			break
@@ -71,7 +71,7 @@ func main() {
 				jnoise += len(record)
 			}
 			lognoise, _ := strconv.ParseFloat(record[jnoise], 64)
-			std += 0.1*math.Exp(lognoise)
+			std += 0.1 * math.Exp(lognoise)
 		}
 		sum += nlpd(y, mean, std)
 	}
